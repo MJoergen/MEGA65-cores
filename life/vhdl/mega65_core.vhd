@@ -10,11 +10,15 @@ library ieee;
    use ieee.std_logic_1164.all;
    use ieee.numeric_std.all;
 
+library xpm;
+   use xpm.vcomponents.all;
+
 library work;
    use work.video_modes_pkg.all;
 
 entity mega65_core is
    generic (
+      G_FONT_PATH     : string                                         := "";
       G_UART_BAUDRATE : natural                                        := 115_200;
       G_ROWS          : integer                                        := 8;
       G_COLS          : integer                                        := 8;
@@ -226,6 +230,7 @@ architecture synthesis of mega65_core is
    signal main_life_wr_index : integer range G_ROWS * G_COLS - 1 downto 0;
    signal main_life_wr_value : std_logic;
    signal main_life_wr_en    : std_logic;
+   signal main_life_count    : std_logic_vector(15 downto 0);
 
    signal main_uart_rx_ready : std_logic;
    signal main_uart_rx_valid : std_logic;
@@ -234,14 +239,30 @@ architecture synthesis of mega65_core is
    signal main_uart_tx_valid : std_logic;
    signal main_uart_tx_data  : std_logic_vector(7 downto 0);
 
+   signal slr_in  : std_logic_vector(3 downto 0);
+   signal slr_out : std_logic_vector(3 downto 0);
+
+   signal video_pix_x       : std_logic_vector(9 downto 0);
+   signal video_pix_y       : std_logic_vector(9 downto 0);
+   signal video_hs          : std_logic;
+   signal video_vs          : std_logic;
+   signal video_hblank      : std_logic;
+   signal video_vblank      : std_logic;
+   signal video_board       : std_logic_vector(G_ROWS * G_COLS - 1 downto 0);
+   signal video_count       : std_logic_vector(15 downto 0);
+   signal video_count_board : std_logic_vector(G_ROWS * G_COLS + 15 downto 0);
+   signal video_col         : std_logic_vector(23 downto 0);
+
 begin
 
    -- MMCME2_ADV clock generators:
    clk_inst : entity work.clk
       port map (
-         sys_clk_i  => clk_i,
-         main_clk_o => main_clk_o,
-         main_rst_o => main_rst_o
+         sys_clk_i   => clk_i,
+         video_clk_o => video_clk_o,
+         video_rst_o => video_rst_o,
+         main_clk_o  => main_clk_o,
+         main_rst_o  => main_rst_o
       ); -- clk_inst
 
    -- Instantiate main
@@ -298,6 +319,85 @@ begin
          uart_tx_o  => uart_tx_o,
          uart_rx_i  => uart_rx_i
       ); -- uart_inst
+
+   main_life_count_proc : process (main_clk_o)
+   begin
+      if rising_edge(main_clk_o) then
+         if main_life_step then
+            main_life_count <= std_logic_vector(unsigned(main_life_count) + 1);
+         end if;
+         if main_rst_o then
+            main_life_count <= (others => '0');
+         end if;
+      end if;
+   end process main_life_count_proc;
+
+
+   ---------------------------------------------------------------------------------------------
+   -- Video output
+   ---------------------------------------------------------------------------------------------
+
+   xpm_cdc_array_single_inst : component xpm_cdc_array_single
+      generic map (
+         WIDTH => G_ROWS * G_COLS + 16
+      )
+      port map (
+         src_clk  => main_clk_o,
+         src_in   => main_life_count & main_life_board,
+         dest_clk => video_clk_o,
+         dest_out => video_count_board
+      ); -- xpm_cdc_array_single_inst
+
+   (video_count, video_board)                               <= video_count_board;
+
+   vga_inst : entity work.vga
+      port map (
+         clk_i    => video_clk_o,
+         hs_o     => video_hs,
+         vs_o     => video_vs,
+         hblank_o => video_hblank,
+         vblank_o => video_vblank,
+         pix_x_o  => video_pix_x,
+         pix_y_o  => video_pix_y
+      ); -- vga_inst
+
+   slr_in                                                   <= (video_hs, video_vs, video_hblank, video_vblank);
+   (video_hs_o, video_vs_o, video_hblank_o, video_vblank_o) <= slr_out;
+
+   shift_registers_inst : entity work.shift_registers
+      generic map (
+         G_DATA_SIZE => 4,
+         G_DEPTH     => 3
+      )
+      port map (
+         clk_i   => video_clk_o,
+         clken_i => '1',
+         data_i  => slr_in,
+         data_o  => slr_out
+      ); -- shift_registers_inst
+
+   vga_wrapper_inst : entity work.vga_wrapper
+      generic map (
+         G_FONT_PATH => G_FONT_PATH,
+         G_ROWS      => G_ROWS,
+         G_COLS      => G_COLS
+      )
+      port map (
+         vga_clk_i    => video_clk_o,
+         vga_rst_i    => video_rst_o,
+         vga_hcount_i => "0" & video_pix_x,
+         vga_vcount_i => "0" & video_pix_y,
+         vga_blank_i  => video_hblank or video_vblank,
+         vga_board_i  => video_board,
+         vga_count_i  => video_count,
+         vga_rgb_o    => video_col
+      ); -- vga_wrapper_inst
+
+   video_ce_o              <= '1';
+   video_ce_ovl_o          <= '1';
+   video_red_o             <= video_col(23 downto 16);
+   video_green_o           <= video_col(15 downto  8);
+   video_blue_o            <= video_col( 7 downto  0);
 
 
    ---------------------------------------------------------------------------------------------
@@ -366,8 +466,6 @@ begin
    qnice_scandoubler_o     <= '0';       -- no scandoubler
    qnice_video_mode_o      <= C_VIDEO_SVGA_800_60;
    qnice_zoom_crop_o       <= '0';       -- 0 = no zoom/crop
-   video_clk_o             <= main_clk_o;
-   video_rst_o             <= main_rst_o;
 
 end architecture synthesis;
 

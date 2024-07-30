@@ -103,6 +103,7 @@ begin
    -- Instantiate DUT
    mega65_core_inst : entity work.mega65_core
       generic map (
+         G_FONT_PATH     => "../vhdl/",
          G_UART_BAUDRATE => C_UART_BAUDRATE,
          G_ROWS          => G_ROWS,
          G_COLS          => G_COLS,
