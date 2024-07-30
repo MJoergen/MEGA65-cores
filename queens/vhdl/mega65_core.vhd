@@ -15,7 +15,9 @@ library work;
 
 entity mega65_core is
    generic (
-      G_BOARD : string -- Which platform are we running on.
+      G_UART_BAUDRATE : natural := 115_200;
+      G_NUM_QUEENS    : natural := 8;
+      G_BOARD         : string -- Which platform are we running on.
    );
    port (
       --------------------------------------------------------------------------------------------------------
@@ -99,7 +101,7 @@ entity mega65_core is
       clk_i                   : in    std_logic;             -- 100 MHz clock
 
       -- Share clock and reset with the framework
-      main_clk_o              : out   std_logic;             -- CORE's 54 MHz clock
+      main_clk_o              : out   std_logic;             -- CORE's clock
       main_rst_o              : out   std_logic;             -- CORE's reset, synchronized
 
       -- M2M's reset manager provides 2 signals:
@@ -209,11 +211,26 @@ entity mega65_core is
       cart_a_o                : out   unsigned(15 downto 0);
       cart_data_oe_o          : out   std_logic;             -- 0 : tristate (i.e. input), 1 : output
       cart_d_i                : in    unsigned( 7 downto 0);
-      cart_d_o                : out   unsigned( 7 downto 0)
+      cart_d_o                : out   unsigned( 7 downto 0);
+      uart_tx_o               : out   std_logic;
+      uart_rx_i               : in    std_logic
    );
 end entity mega65_core;
 
 architecture synthesis of mega65_core is
+
+   signal main_queens_ready : std_logic;
+   signal main_queens_valid : std_logic;
+   signal main_queens_step  : std_logic;
+   signal main_queens_board : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
+   signal main_queens_done  : std_logic;
+
+   signal main_uart_rx_ready : std_logic;
+   signal main_uart_rx_valid : std_logic;
+   signal main_uart_rx_data  : std_logic_vector(7 downto 0);
+   signal main_uart_tx_ready : std_logic;
+   signal main_uart_tx_valid : std_logic;
+   signal main_uart_tx_data  : std_logic_vector(7 downto 0);
 
 begin
 
@@ -224,6 +241,59 @@ begin
          main_clk_o => main_clk_o,
          main_rst_o => main_rst_o
       ); -- clk_inst
+
+   -- Instantiate queens
+   queens_inst : entity work.queens
+      generic map (
+         G_NUM_QUEENS => G_NUM_QUEENS
+      )
+      port map (
+         clk_i   => main_clk_o,
+         rst_i   => main_rst_o,
+         en_i    => main_queens_ready and main_queens_step,
+         board_o => main_queens_board,
+         valid_o => main_queens_valid,
+         done_o  => main_queens_done
+      ); -- queens_inst
+
+   -- UART Interface
+   uart_wrapper_inst : entity work.uart_wrapper
+      generic map (
+         G_NUM_QUEENS => G_NUM_QUEENS
+      )
+      port map (
+         clk_i           => main_clk_o,
+         rst_i           => main_rst_o,
+         uart_rx_ready_o => main_uart_rx_ready,
+         uart_rx_valid_i => main_uart_rx_valid,
+         uart_rx_data_i  => main_uart_rx_data,
+         uart_tx_ready_i => main_uart_tx_ready,
+         uart_tx_valid_o => main_uart_tx_valid,
+         uart_tx_data_o  => main_uart_tx_data,
+         valid_i         => main_queens_valid,
+         ready_o         => main_queens_ready,
+         result_i        => main_queens_board,
+         done_i          => main_queens_done,
+         step_o          => main_queens_step
+      ); -- uart_wrapper_inst
+
+   uart_inst : entity work.uart
+      generic map (
+         G_DIVISOR => 100_000_000 / G_UART_BAUDRATE
+      )
+      port map (
+         clk_i      => main_clk_o,
+         rst_i      => main_rst_o,
+         rx_ready_i => main_uart_rx_ready,
+         rx_valid_o => main_uart_rx_valid,
+         rx_data_o  => main_uart_rx_data,
+         tx_ready_o => main_uart_tx_ready,
+         tx_valid_i => main_uart_tx_valid,
+         tx_data_i  => main_uart_tx_data,
+         uart_tx_o  => uart_tx_o,
+         uart_rx_i  => uart_rx_i
+      ); -- uart_inst
+
 
    ---------------------------------------------------------------------------------------------
    -- Default values

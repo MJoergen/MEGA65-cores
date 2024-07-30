@@ -198,7 +198,8 @@ MAIN_LOOP       RSUB    HANDLE_IO, 1            ; IO handling (e.g. vdrives)
 ; arrays of pointers to all the file handles for the virtual drives
 ; (needs to be in line with VDRIVES_MAX) and for the CRT/ROM loading mechanism
 ; (needs to be in line with CRTROM_MAN_MAX, both in shell_vars.asm)
-#include "../../CORE/m2m-rom/shell_fh_ptrs.asm"
+;#include "../../CORE/m2m-rom/shell_fh_ptrs.asm"
+; MFJ: Now this is included from m2m_rom.asm
 
 ; Handle mounting of virtual drives and manual loading of CRTs/ROMs
 ;
