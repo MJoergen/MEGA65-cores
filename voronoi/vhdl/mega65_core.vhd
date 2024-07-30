@@ -226,6 +226,13 @@ architecture synthesis of mega65_core is
    signal video_pix_y : std_logic_vector(9 downto 0);
    signal video_col   : std_logic_vector(23 downto 0);
 
+   signal video_hs     : std_logic;
+   signal video_vs     : std_logic;
+   signal video_hblank : std_logic;
+   signal video_vblank : std_logic;
+   signal slr_in       : std_logic_vector(3 downto 0);
+   signal slr_out      : std_logic_vector(3 downto 0);
+
 begin
 
    -- MMCME2_ADV clock generators:
@@ -239,13 +246,28 @@ begin
    vga_inst : entity work.vga
       port map (
          clk_i    => video_clk_o,
-         hs_o     => video_hs_o,
-         vs_o     => video_vs_o,
-         hblank_o => video_hblank_o,
-         vblank_o => video_vblank_o,
+         hs_o     => video_hs,
+         vs_o     => video_vs,
+         hblank_o => video_hblank,
+         vblank_o => video_vblank,
          pix_x_o  => video_pix_x,
          pix_y_o  => video_pix_y
       ); -- vga_inst
+
+   slr_in                                                   <= (video_hs, video_vs, video_hblank, video_vblank);
+   (video_hs_o, video_vs_o, video_hblank_o, video_vblank_o) <= slr_out;
+
+   shift_registers_inst : entity work.shift_registers
+      generic map (
+         G_DATA_SIZE => 4,
+         G_DEPTH     => 3
+      )
+      port map (
+         clk_i   => video_clk_o,
+         clken_i => '1',
+         data_i  => slr_in,
+         data_o  => slr_out
+      ); -- shift_registers_inst
 
    -- Instantiate main
    voronoi_inst : entity work.voronoi

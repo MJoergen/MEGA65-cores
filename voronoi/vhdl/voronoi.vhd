@@ -30,8 +30,8 @@ architecture structural of voronoi is
    signal   stage1_dist : coord_vector_type(C_NUM_POINTS - 1 downto 0);
 
    signal   stage2_mindist : std_logic_vector(9 + C_RESOLUTION downto 0);
-   signal   stage2_colour  : std_logic_vector(2 downto 0);
-   signal   stage3_colour : std_logic_vector(23 downto 0);
+   signal   stage2_colour  : std_logic_vector(4 downto 0);
+   signal   stage3_colour  : std_logic_vector(23 downto 0);
 
    type     init_type is record
       startx : std_logic_vector(9 downto 0);
@@ -112,29 +112,29 @@ begin
 
    mindist_proc : process (clk_i)
       variable mindist1_v : std_logic_vector(9 + C_RESOLUTION downto 0);
-      variable colour1_v  : std_logic_vector(2 downto 0);
+      variable colour1_v  : std_logic_vector(4 downto 0);
       variable mindist2_v : std_logic_vector(9 + C_RESOLUTION downto 0);
-      variable colour2_v  : std_logic_vector(2 downto 0);
+      variable colour2_v  : std_logic_vector(4 downto 0);
    begin
       if rising_edge(clk_i) then
          -- Split the comparison in two, to get better timing.
-         colour1_v  := "000";
+         colour1_v  := "00000";
          mindist1_v := stage1_dist(0);
 
          for i in 1 to C_NUM_POINTS / 2 - 1 loop
             if stage1_dist(i) < mindist1_v then
                mindist1_v := stage1_dist(i);
-               colour1_v  := to_stdlogicvector(i mod 7, 3);
+               colour1_v  := to_stdlogicvector(i mod 32, 5);
             end if;
          end loop;
 
-         colour2_v  := to_stdlogicvector((C_NUM_POINTS / 2) mod 7, 3);
+         colour2_v  := to_stdlogicvector((C_NUM_POINTS / 2) mod 32, 5);
          mindist2_v := stage1_dist(C_NUM_POINTS / 2);
 
          for i in C_NUM_POINTS / 2 + 1 to C_NUM_POINTS - 1 loop
             if stage1_dist(i) < mindist2_v then
                mindist2_v := stage1_dist(i);
-               colour2_v  := to_stdlogicvector(i mod 7, 3);
+               colour2_v  := to_stdlogicvector(i mod 32, 5);
             end if;
          end loop;
 
@@ -157,8 +157,22 @@ begin
       variable brightness_v : std_logic_vector(7 downto 0);
    begin
       if rising_edge(clk_i) then
-         brightness_v   := not stage2_mindist(C_RESOLUTION + 6 downto C_RESOLUTION) & "0";
-         stage3_colour <= (others => '0');
+         brightness_v  := not stage2_mindist(C_RESOLUTION + 7 downto C_RESOLUTION);
+         case stage2_colour(4 downto 3) is
+            when "00" => stage3_colour <= (others => '0');
+            when "01" => stage3_colour <=
+                             "0" & brightness_v(7 downto 1) &
+                             "0" & brightness_v(7 downto 1) &
+                             X"00";
+            when "10" => stage3_colour <=
+                             "0" & brightness_v(7 downto 1) &
+                             X"00" &
+                             "0" & brightness_v(7 downto 1);
+            when "11" => stage3_colour <=
+                             X"00" &
+                             "0" & brightness_v(7 downto 1) &
+                             "0" & brightness_v(7 downto 1);
+         end case;
 
          if stage2_colour(0) = '0' then
             stage3_colour(7 downto 0) <= brightness_v;
