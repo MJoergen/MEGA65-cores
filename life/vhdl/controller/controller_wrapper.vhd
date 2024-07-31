@@ -67,19 +67,21 @@ begin
          G_COLS => G_COLS
       )
       port map (
-         clk_i           => main_clk_i,
-         rst_i           => main_rst_i,
-         uart_rx_valid_i => main_uart_rx_valid,
-         uart_rx_ready_o => main_uart_rx_ready,
-         uart_rx_data_i  => main_uart_rx_data,
-         uart_tx_valid_o => main_uart_tx_valid,
-         uart_tx_ready_i => main_uart_tx_ready,
-         uart_tx_data_o  => main_uart_tx_data,
-         board_i         => main_life_board_i,
-         step_o          => main_life_step_o,
-         wr_index_o      => main_life_wr_index_o,
-         wr_value_o      => main_life_wr_value_o,
-         wr_en_o         => main_life_wr_en_o
+         clk_i                   => main_clk_i,
+         rst_i                   => main_rst_i,
+         main_kb_key_num_i       => main_kb_key_num_i,
+         main_kb_key_pressed_n_i => main_kb_key_pressed_n_i,
+         uart_rx_valid_i         => main_uart_rx_valid,
+         uart_rx_ready_o         => main_uart_rx_ready,
+         uart_rx_data_i          => main_uart_rx_data,
+         uart_tx_valid_o         => main_uart_tx_valid,
+         uart_tx_ready_i         => main_uart_tx_ready,
+         uart_tx_data_o          => main_uart_tx_data,
+         board_i                 => main_life_board_i,
+         step_o                  => main_life_step_o,
+         wr_index_o              => main_life_wr_index_o,
+         wr_value_o              => main_life_wr_value_o,
+         wr_en_o                 => main_life_wr_en_o
       ); -- controller_inst
 
    main_life_count_proc : process (main_clk_i)
