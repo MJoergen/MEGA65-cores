@@ -1,12 +1,12 @@
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std_unsigned.all;
+   use ieee.std_logic_1164.all;
+   use ieee.numeric_std_unsigned.all;
 
 library unisim;
-use unisim.vcomponents.all;
+   use unisim.vcomponents.all;
 
 library unimacro;
-use unimacro.vcomponents.all;
+   use unimacro.vcomponents.all;
 
 ---------------------------
 -- This module iterates the Mandelbrot fractal equation
@@ -57,13 +57,13 @@ entity iterator is
       G_MAX_COUNT : integer
    );
    port (
-      clk_i   : in  std_logic;
-      rst_i   : in  std_logic;
-      start_i : in  std_logic;
-      cx_i    : in  std_logic_vector(17 downto 0);
-      cy_i    : in  std_logic_vector(17 downto 0);
-      cnt_o   : out std_logic_vector( 8 downto 0);
-      done_o  : out std_logic
+      clk_i   : in    std_logic;
+      rst_i   : in    std_logic;
+      start_i : in    std_logic;
+      cx_i    : in    std_logic_vector(17 downto 0);
+      cy_i    : in    std_logic_vector(17 downto 0);
+      cnt_o   : out   std_logic_vector( 8 downto 0);
+      done_o  : out   std_logic
    );
 end entity iterator;
 
@@ -80,18 +80,18 @@ architecture rtl of iterator is
    signal cnt_r        : std_logic_vector( 8 downto 0);
    signal done_r       : std_logic;
 
-   type state_t is (IDLE_ST, ADD_ST, MULT_ST, UPDATE_ST);
-   signal state_r : state_t := IDLE_ST;
+   type   state_type is (IDLE_ST, ADD_ST, MULT_ST, UPDATE_ST);
+   signal state_r : state_type := IDLE_ST;
 
    signal x2_m_y2_s  : std_logic_vector(35 downto 0);
    signal cx_s       : std_logic_vector(35 downto 0);
    signal xy_s       : std_logic_vector(35 downto 0);
    signal cy_div_2_s : std_logic_vector(35 downto 0);
 
-   signal ovf_x36_s  : std_logic;
-   signal ovf_y36_s  : std_logic;
-   signal ovf_y35_s  : std_logic;
-   signal ovf_y34_s  : std_logic;
+   signal ovf_x36_s : std_logic;
+   signal ovf_y36_s : std_logic;
+   signal ovf_y35_s : std_logic;
+   signal ovf_y34_s : std_logic;
 
 begin
 
@@ -99,11 +99,12 @@ begin
    -- State machine
    -----------------
 
-   p_state : process (clk_i)
+   fsm_proc : process (clk_i)
    begin
       if rising_edge(clk_i) then
 
          case state_r is
+
             when IDLE_ST =>
                if start_i = '1' then
                   x_r       <= (others => '0');
@@ -125,16 +126,15 @@ begin
                state_r <= MULT_ST;
 
                -- Check for overflow
-               if ovf_x36_s = '1' or ovf_y36_s = '1' or 
-                  ovf_y35_s /= ovf_y34_s
-               then
+               if ovf_x36_s = '1' or ovf_y36_s = '1' or
+                  ovf_y35_s /= ovf_y34_s then
                   done_r  <= '1';
                   state_r <= IDLE_ST;
                else
                   cnt_r   <= cnt_r + 1;
                   state_r <= MULT_ST;
 
-                  if cnt_r = G_MAX_COUNT-1 then
+                  if cnt_r = G_MAX_COUNT - 1 then
                      done_r  <= '1';
                      state_r <= IDLE_ST;
                   end if;
@@ -145,19 +145,21 @@ begin
                state_r <= UPDATE_ST;
 
             when UPDATE_ST =>
-               x_r <= new_x_s(35 downto 18);
-               y_r <= new_y_half_s(35) & new_y_half_s(33 downto 18) & "0";
-               a_r <= new_x_s(35 downto 18);
-               b_r <= new_y_half_s(35) & new_y_half_s(33 downto 18) & "0";
+               x_r       <= new_x_s(35 downto 18);
+               y_r       <= new_y_half_s(35) & new_y_half_s(33 downto 18) & "0";
+               a_r       <= new_x_s(35 downto 18);
+               b_r       <= new_y_half_s(35) & new_y_half_s(33 downto 18) & "0";
 
                ovf_x36_s <= new_x_s(36);
                ovf_y36_s <= new_y_half_s(36);
                ovf_y35_s <= new_y_half_s(35);
                ovf_y34_s <= new_y_half_s(34);
 
-               state_r <= ADD_ST;
+               state_r   <= ADD_ST;
 
-            when others => null;
+            when others =>
+               null;
+
          end case;
 
          if rst_i = '1' then
@@ -165,14 +167,14 @@ begin
             done_r  <= '0';
          end if;
       end if;
-   end process p_state;
+   end process fsm_proc;
 
 
    --------------------------
    -- Instantiate multiplier
    --------------------------
 
-   i_mult : mult_macro
+   mult_inst : component mult_macro
       generic map (
          DEVICE  => "7SERIES",
          LATENCY => 1,
@@ -180,25 +182,25 @@ begin
          WIDTH_B => 18
       )
       port map (
-         CLK => clk_i,
-         RST => rst_i,
-         CE  => '1',
-         P   => product_s, -- Output
-         A   => a_r,       -- Input
-         B   => b_r        -- Input
-      ); -- i_mult
+         clk => clk_i,
+         rst => rst_i,
+         ce  => '1',
+         p   => product_s, -- Output
+         a   => a_r,       -- Input
+         b   => b_r        -- Input
+      ); -- mult_inst
 
 
    -----------------------------------
    -- Register output from multiplier
    -----------------------------------
 
-   p_product_d : process (clk_i)
+   product_d_proc : process (clk_i)
    begin
       if rising_edge(clk_i) then
          product_d_r <= product_s;
       end if;
-   end process p_product_d;
+   end process product_d_proc;
 
 
    ------------------------------
@@ -208,16 +210,16 @@ begin
    x2_m_y2_s <= product_s(35) & product_s(32 downto 0) & "00";
    cx_s      <= cx_i & "00" & X"0000";
 
-   i_add_overflow_x : entity work.add_overflow
+   add_overflow_x_inst : entity work.add_overflow
       generic map (
-         SIZE => 36
+         G_SIZE => 36
       )
       port map (
          a_i   => x2_m_y2_s,
          b_i   => cx_s,
          r_o   => new_x_s(35 downto 0),
          ovf_o => new_x_s(36)
-      ); -- i_add_overflow_x
+      ); -- add_overflow_x_inst
 
 
    --------------------------
@@ -227,16 +229,16 @@ begin
    xy_s       <= product_d_r(35) & product_d_r(32 downto 0) & "00";
    cy_div_2_s <= cy_i(17) & cy_i & "0" & X"0000";
 
-   i_add_overflow_y_half : entity work.add_overflow
+   add_overflow_y_half_inst : entity work.add_overflow
       generic map (
-         SIZE => 36
+         G_SIZE => 36
       )
       port map (
          a_i   => xy_s,
          b_i   => cy_div_2_s,
          r_o   => new_y_half_s(35 downto 0),
          ovf_o => new_y_half_s(36)
-      ); -- i_add_overflow_y_half
+      ); -- add_overflow_y_half_inst
 
 
    --------------------------

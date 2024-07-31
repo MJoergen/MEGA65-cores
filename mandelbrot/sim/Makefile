@@ -5,8 +5,6 @@ SRCS += ../vhdl/clk.vhd
 SRCS += ../vhdl/main/add_overflow.vhd
 SRCS += ../vhdl/main/iterator.vhd
 SRCS += ../vhdl/main/column.vhd
-SRCS += ../vhdl/main/priority.vhd
-SRCS += ../vhdl/main/priority_pipeline.vhd
 SRCS += ../vhdl/main/scheduler.vhd
 SRCS += ../vhdl/main/dispatcher.vhd
 SRCS += ../vhdl/disp_mem.vhd
@@ -19,13 +17,11 @@ SRCS += tb_column.vhd
 SRCS += tb_dispatcher.vhd
 SRCS += tb_iterator.vhd
 SRCS += tb_mult.vhd
-SRCS += tb_priority_pipeline.vhd
 
 TB = mult
 TB = iterator
 TB = column
 TB = dispatcher
-TB = priority_pipeline
 TB = mega65_core
 
 GENERICS += -gG_BOARD=R6

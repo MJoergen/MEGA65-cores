@@ -1,6 +1,6 @@
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std_unsigned.all;
+   use ieee.std_logic_1164.all;
+   use ieee.numeric_std_unsigned.all;
 
 entity tb_dispatcher is
 end entity tb_dispatcher;
@@ -12,62 +12,45 @@ architecture simulation of tb_dispatcher is
    constant C_NUM_COLS      : integer := 200;
    constant C_NUM_ITERATORS : integer := 32;
 
-   signal clk     : std_logic;
-   signal rst     : std_logic;
-   signal start   : std_logic;
-   signal startx  : std_logic_vector(17 downto 0);
-   signal starty  : std_logic_vector(17 downto 0);
-   signal stepx   : std_logic_vector(17 downto 0);
-   signal stepy   : std_logic_vector(17 downto 0);
-   signal wr_addr : std_logic_vector(18 downto 0);
-   signal wr_data : std_logic_vector( 8 downto 0);
-   signal wr_en   : std_logic;
-   signal done    : std_logic;
+   signal   clk     : std_logic       := '1';
+   signal   rst     : std_logic       := '1';
+   signal   start   : std_logic;
+   signal   startx  : std_logic_vector(17 downto 0);
+   signal   starty  : std_logic_vector(17 downto 0);
+   signal   stepx   : std_logic_vector(17 downto 0);
+   signal   stepy   : std_logic_vector(17 downto 0);
+   signal   wr_addr : std_logic_vector(18 downto 0);
+   signal   wr_data : std_logic_vector( 8 downto 0);
+   signal   wr_en   : std_logic;
+   signal   done    : std_logic;
 
 begin
 
-   ----------------------------
-   -- Generate clock and reset
-   ----------------------------
+   clk <= not clk after 5 ns; -- 100 MHz
+   rst <= '1', '0' after 100 ns;
 
-   p_clk : process
-   begin
-      clk <= '0', '1' after 5 ns;
-      wait for 10 ns;
-   end process p_clk;
-
-   p_rst : process
-   begin
-      rst <= '1';
-      wait for 100 ns;
-      wait until clk = '1';
-      rst <= '0';
-      wait;
-   end process p_rst;
-
-
-   p_start : process
+   test_proc : process
    begin
       start  <= '0';
-      startx <= "10" & X"5555";  -- -1.66667
-      starty <= "11" & X"0000";  -- -1
-      stepx  <= to_std_logic_vector(integer(3.3333*(2**16))/C_NUM_COLS, 18);
-      stepy  <= to_std_logic_vector(integer(2.0000*(2**16))/C_NUM_ROWS, 18);
+      startx <= "10" & X"5555";                                                    -- -1.66667
+      starty <= "11" & X"0000";                                                    -- -1
+      stepx  <= to_std_logic_vector(integer(3.3333 * (2 ** 16)) / C_NUM_COLS, 18);
+      stepy  <= to_std_logic_vector(integer(2.0000 * (2 ** 16)) / C_NUM_ROWS, 18);
 
       wait for 500 ns;
       wait until clk = '1';
-      start <= '1';
+      start  <= '1';
       wait until clk = '1';
-      start <= '0';
+      start  <= '0';
       wait;
-   end process p_start;
+   end process test_proc;
 
 
    -------------------
    -- Instantiate DUT
    -------------------
 
-   i_dispatcher : entity work.dispatcher
+   dispatcher_inst : entity work.dispatcher
       generic map (
          G_MAX_COUNT     => C_MAX_COUNT,
          G_NUM_ROWS      => C_NUM_ROWS,
@@ -86,7 +69,7 @@ begin
          wr_data_o => wr_data,
          wr_en_o   => wr_en,
          done_o    => done
-      ); -- i_dispatcher
+      ); -- dispatcher_inst
 
 end architecture simulation;
 

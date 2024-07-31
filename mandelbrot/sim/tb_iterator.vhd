@@ -1,6 +1,6 @@
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std_unsigned.all;
+   use ieee.std_logic_1164.all;
+   use ieee.numeric_std_unsigned.all;
 
 -- Simple testbench for the Mandelbrot state machine
 -- We start with the point -1+0.5i, i.e. cx = -1 and cy = 0.5
@@ -18,10 +18,8 @@ end entity tb_iterator;
 
 architecture simulation of tb_iterator is
 
-   signal clk    : std_logic;
-   signal rst    : std_logic := '1';
-   signal rst_d1 : std_logic := '1';
-   signal rst_d2 : std_logic := '1';
+   signal clk : std_logic := '1';
+   signal rst : std_logic := '1';
 
    signal start : std_logic;
    signal cx    : std_logic_vector(17 downto 0);
@@ -31,46 +29,29 @@ architecture simulation of tb_iterator is
 
 begin
 
-   ----------------------------
-   -- Generate clock and reset
-   ----------------------------
-
-   p_clk : process
-   begin
-      clk <= '0', '1' after 5 ns;
-      wait for 10 ns;
-   end process p_clk;
-
-   p_rst : process
-   begin
-      rst <= '1';
-      wait for 100 ns;
-      wait until clk = '1';
-      rst <= '0';
-      wait;
-   end process p_rst;
+   clk <= not clk after 5 ns; -- 100 MHz
+   rst <= '1', '0' after 100 ns;
 
 
-   cx <= "11" & X"0000";   -- i.e. -1
-   cy <= "00" & X"8000";   -- i.e. 0.5
-
-   p_start : process
+   test_proc : process
    begin
       start <= '0';
       wait for 500 ns;
       wait until clk = '1';
+      cx    <= "11" & X"0000";   -- i.e. -1
+      cy    <= "00" & X"8000";   -- i.e. 0.5
       start <= '1';
       wait until clk = '1';
       start <= '0';
       wait;
-   end process p_start;
+   end process test_proc;
 
 
    -------------------
    -- Instantiate DUT
    -------------------
 
-   i_iterator : entity work.iterator
+   iterator_inst : entity work.iterator
       generic map (
          G_MAX_COUNT => 510
       )
@@ -82,7 +63,7 @@ begin
          cy_i    => cy,
          cnt_o   => cnt,
          done_o  => done
-      ); -- i_iterator
+      ); -- iterator_inst
 
 end architecture simulation;
 

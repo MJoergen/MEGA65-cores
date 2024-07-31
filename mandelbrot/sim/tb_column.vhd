@@ -1,14 +1,14 @@
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std_unsigned.all;
+   use ieee.std_logic_1164.all;
+   use ieee.numeric_std_unsigned.all;
 
 entity tb_column is
 end entity tb_column;
 
 architecture simulation of tb_column is
 
-   signal clk         : std_logic;
-   signal rst         : std_logic;
+   signal clk         : std_logic := '1';
+   signal rst         : std_logic := '1';
    signal job_start   : std_logic;
    signal job_cx      : std_logic_vector(17 downto 0);
    signal job_starty  : std_logic_vector(17 downto 0);
@@ -22,27 +22,11 @@ architecture simulation of tb_column is
 
 begin
 
-   ----------------------------
-   -- Generate clock and reset
-   ----------------------------
-
-   p_clk : process
-   begin
-      clk <= '0', '1' after 5 ns;
-      wait for 10 ns;
-   end process p_clk;
-
-   p_rst : process
-   begin
-      rst <= '1';
-      wait for 100 ns;
-      wait until clk = '1';
-      rst <= '0';
-      wait;
-   end process p_rst;
+   clk <= not clk after 5 ns; -- 100 MHz
+   rst <= '1', '0' after 100 ns;
 
 
-   p_start : process
+   test_proc : process
    begin
       job_start  <= '0';
       job_cx     <= "11" & X"0000";     -- -1
@@ -50,18 +34,18 @@ begin
       job_stepy  <= "00" & X"2000";     -- 0.125
       wait for 500 ns;
       wait until clk = '1';
-      job_start <= '1';
+      job_start  <= '1';
       wait until clk = '1';
-      job_start <= '0';
+      job_start  <= '0';
       wait;
-   end process p_start;
+   end process test_proc;
 
 
    -------------------
    -- Instantiate DUT
    -------------------
 
-   i_column : entity work.column
+   column_inst : entity work.column
       generic map (
          G_MAX_COUNT => 20,
          G_NUM_ROWS  => 10
@@ -78,17 +62,16 @@ begin
          res_ack_i    => res_ack,
          res_data_o   => res_data,
          res_valid_o  => res_valid
-      ); -- i_column
+      ); -- column_inst
 
 
-   p_res_ack : process (clk)
+   res_ack_proc : process (clk)
    begin
       if rising_edge(clk) then
          res_valid_d <= res_valid;
          res_ack     <= res_valid_d;
       end if;
-   end process p_res_ack;
-
+   end process res_ack_proc;
 
 end architecture simulation;
 
