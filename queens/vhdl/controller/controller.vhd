@@ -2,7 +2,7 @@ library ieee;
    use ieee.std_logic_1164.all;
    use ieee.numeric_std_unsigned.all;
 
-entity uart_wrapper is
+entity controller is
    generic (
       G_NUM_QUEENS : integer
    );
@@ -21,9 +21,9 @@ entity uart_wrapper is
       done_i          : in    std_logic;
       step_o          : out   std_logic
    );
-end entity uart_wrapper;
+end entity controller;
 
-architecture synthesis of uart_wrapper is
+architecture synthesis of controller is
 
    type   uart_tx_state_type is (IDLE_ST, ROW_ST, EOL_ST, END_ST);
    signal uart_tx_state : uart_tx_state_type := IDLE_ST;

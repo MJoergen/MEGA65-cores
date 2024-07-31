@@ -10,11 +10,16 @@ library ieee;
    use ieee.std_logic_1164.all;
    use ieee.numeric_std.all;
 
+library xpm;
+   use xpm.vcomponents.all;
+
 library work;
    use work.video_modes_pkg.all;
+   use work.globals.all;
 
 entity mega65_core is
    generic (
+      G_FONT_PATH     : string  := "";
       G_UART_BAUDRATE : natural := 115_200;
       G_NUM_QUEENS    : natural := 8;
       G_BOARD         : string -- Which platform are we running on.
@@ -219,27 +224,33 @@ end entity mega65_core;
 
 architecture synthesis of mega65_core is
 
-   signal main_queens_ready : std_logic;
-   signal main_queens_valid : std_logic;
-   signal main_queens_step  : std_logic;
-   signal main_queens_board : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
-   signal main_queens_done  : std_logic;
+   constant C_VIDEO_MODE : video_modes_t := C_HDMI_640x480p_60;
 
-   signal main_uart_rx_ready : std_logic;
-   signal main_uart_rx_valid : std_logic;
-   signal main_uart_rx_data  : std_logic_vector(7 downto 0);
-   signal main_uart_tx_ready : std_logic;
-   signal main_uart_tx_valid : std_logic;
-   signal main_uart_tx_data  : std_logic_vector(7 downto 0);
+   signal   main_queens_ready : std_logic;
+   signal   main_queens_valid : std_logic;
+   signal   main_queens_step  : std_logic;
+   signal   main_queens_board : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
+   signal   main_queens_done  : std_logic;
+
+   signal   main_uart_rx_ready : std_logic;
+   signal   main_uart_rx_valid : std_logic;
+   signal   main_uart_rx_data  : std_logic_vector(7 downto 0);
+   signal   main_uart_tx_ready : std_logic;
+   signal   main_uart_tx_valid : std_logic;
+   signal   main_uart_tx_data  : std_logic_vector(7 downto 0);
+
+   signal   video_board : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
 
 begin
 
    -- MMCME2_ADV clock generators:
    clk_inst : entity work.clk
       port map (
-         sys_clk_i  => clk_i,
-         main_clk_o => main_clk_o,
-         main_rst_o => main_rst_o
+         sys_clk_i   => clk_i,
+         video_clk_o => video_clk_o,
+         video_rst_o => video_rst_o,
+         main_clk_o  => main_clk_o,
+         main_rst_o  => main_rst_o
       ); -- clk_inst
 
    -- Instantiate queens
@@ -256,43 +267,62 @@ begin
          done_o  => main_queens_done
       ); -- queens_inst
 
-   -- UART Interface
-   uart_wrapper_inst : entity work.uart_wrapper
+   controller_wrapper_inst : entity work.controller_wrapper
       generic map (
+         G_MAIN_CLK_HZ   => CORE_CLK_SPEED,
+         G_UART_BAUDRATE => 115_200,
+         G_NUM_QUEENS    => G_NUM_QUEENS
+      )
+      port map (
+         main_clk_i              => main_clk_o,
+         main_rst_i              => main_rst_o,
+         main_kb_key_num_i       => main_kb_key_num_i,
+         main_kb_key_pressed_n_i => main_kb_key_pressed_n_i,
+         uart_tx_o               => uart_tx_o,
+         uart_rx_i               => uart_rx_i,
+         main_queens_ready_o     => main_queens_ready,
+         main_queens_valid_i     => main_queens_valid,
+         main_queens_result_i    => main_queens_board,
+         main_queens_done_i      => main_queens_done,
+         main_queens_step_o      => main_queens_step
+      ); -- controller_wrapper_inst
+
+
+   ---------------------------------------------------------------------------------------------
+   -- Video output
+   ---------------------------------------------------------------------------------------------
+
+   xpm_cdc_array_single_inst : component xpm_cdc_array_single
+      generic map (
+         WIDTH => G_NUM_QUEENS * G_NUM_QUEENS
+      )
+      port map (
+         src_clk  => main_clk_o,
+         src_in   => main_queens_board,
+         dest_clk => video_clk_o,
+         dest_out => video_board
+      ); -- xpm_cdc_array_single_inst
+
+   video_wrapper_inst : entity work.video_wrapper
+      generic map (
+         G_VIDEO_MODE => C_VIDEO_MODE,
+         G_FONT_PATH  => G_FONT_PATH,
          G_NUM_QUEENS => G_NUM_QUEENS
       )
       port map (
-         clk_i           => main_clk_o,
-         rst_i           => main_rst_o,
-         uart_rx_ready_o => main_uart_rx_ready,
-         uart_rx_valid_i => main_uart_rx_valid,
-         uart_rx_data_i  => main_uart_rx_data,
-         uart_tx_ready_i => main_uart_tx_ready,
-         uart_tx_valid_o => main_uart_tx_valid,
-         uart_tx_data_o  => main_uart_tx_data,
-         valid_i         => main_queens_valid,
-         ready_o         => main_queens_ready,
-         result_i        => main_queens_board,
-         done_i          => main_queens_done,
-         step_o          => main_queens_step
-      ); -- uart_wrapper_inst
-
-   uart_inst : entity work.uart
-      generic map (
-         G_DIVISOR => 100_000_000 / G_UART_BAUDRATE
-      )
-      port map (
-         clk_i      => main_clk_o,
-         rst_i      => main_rst_o,
-         rx_ready_i => main_uart_rx_ready,
-         rx_valid_o => main_uart_rx_valid,
-         rx_data_o  => main_uart_rx_data,
-         tx_ready_o => main_uart_tx_ready,
-         tx_valid_i => main_uart_tx_valid,
-         tx_data_i  => main_uart_tx_data,
-         uart_tx_o  => uart_tx_o,
-         uart_rx_i  => uart_rx_i
-      ); -- uart_inst
+         video_clk_i    => video_clk_o,
+         video_rst_i    => video_rst_o,
+         video_board_i  => video_board,
+         video_ce_o     => video_ce_o,
+         video_ce_ovl_o => video_ce_ovl_o,
+         video_red_o    => video_red_o,
+         video_green_o  => video_green_o,
+         video_blue_o   => video_blue_o,
+         video_vs_o     => video_vs_o,
+         video_hs_o     => video_hs_o,
+         video_hblank_o => video_hblank_o,
+         video_vblank_o => video_vblank_o
+      ); -- video_wrapper_inst
 
 
    ---------------------------------------------------------------------------------------------
@@ -359,10 +389,8 @@ begin
    qnice_osm_cfg_scaling_o <= (others => '1');
    qnice_retro15khz_o      <= '0';
    qnice_scandoubler_o     <= '0';       -- no scandoubler
-   qnice_video_mode_o      <= C_VIDEO_SVGA_800_60;
+   qnice_video_mode_o      <= C_VIDEO_HDMI_640_60;
    qnice_zoom_crop_o       <= '0';       -- 0 = no zoom/crop
-   video_clk_o             <= main_clk_o;
-   video_rst_o             <= main_rst_o;
 
 end architecture synthesis;
 
