@@ -41,7 +41,11 @@ architecture synthesis of video_wrapper is
    signal slr_in  : std_logic_vector(3 downto 0);
    signal slr_out : std_logic_vector(3 downto 0);
 
-   signal video_col : std_logic_vector(23 downto 0);
+   signal video_x      : std_logic_vector(7 downto 0);
+   signal video_y      : std_logic_vector(7 downto 0);
+   signal video_char   : std_logic_vector(7 downto 0);
+   signal video_colors : std_logic_vector(15 downto 0);
+   signal video_rgb    : std_logic_vector(7 downto 0);
 
 begin
 
@@ -85,29 +89,45 @@ begin
          data_o  => slr_out
       ); -- shift_registers_inst
 
+   vga_chars_inst : entity work.vga_chars
+      generic map (
+         G_FONT_FILE  => G_FONT_PATH & "font8x8.txt",
+         G_VIDEO_MODE => G_VIDEO_MODE
+      )
+      port map (
+         vga_clk_i    => video_clk_i,
+         vga_hcount_i => std_logic_vector(to_unsigned(video_pix_x, 11)),
+         vga_vcount_i => std_logic_vector(to_unsigned(video_pix_y, 11)),
+         vga_blank_i  => video_hblank or video_vblank,
+         vga_x_o      => video_x,
+         vga_y_o      => video_y,
+         vga_char_i   => video_char,
+         vga_colors_i => video_colors,
+         vga_rgb_o    => video_rgb
+      ); -- vga_chars_inst
+
    vga_wrapper_inst : entity work.vga_wrapper
       generic map (
          G_VIDEO_MODE => G_VIDEO_MODE,
-         G_FONT_PATH  => G_FONT_PATH,
          G_ROWS       => G_ROWS,
          G_COLS       => G_COLS
       )
       port map (
          vga_clk_i    => video_clk_i,
          vga_rst_i    => video_rst_i,
-         vga_hcount_i => std_logic_vector(to_unsigned(video_pix_x, 11)),
-         vga_vcount_i => std_logic_vector(to_unsigned(video_pix_y, 11)),
-         vga_blank_i  => video_hblank or video_vblank,
+         vga_x_i      => video_x,
+         vga_y_i      => video_y,
          vga_board_i  => video_board_i,
          vga_count_i  => video_count_i,
-         vga_rgb_o    => video_col
+         vga_char_o   => video_char,
+         vga_colors_o => video_colors
       ); -- vga_wrapper_inst
 
    video_ce_o     <= '1';
    video_ce_ovl_o <= '1';
-   video_red_o    <= video_col(23 downto 16);
-   video_green_o  <= video_col(15 downto  8);
-   video_blue_o   <= video_col( 7 downto  0);
+   video_red_o    <= video_rgb;
+   video_green_o  <= video_rgb;
+   video_blue_o   <= video_rgb;
 
 end architecture synthesis;
 
