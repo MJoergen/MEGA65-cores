@@ -234,13 +234,6 @@ architecture synthesis of mega65_core is
    signal   main_life_wr_en    : std_logic;
    signal   main_life_count    : std_logic_vector(15 downto 0);
 
-   signal   main_uart_rx_ready : std_logic;
-   signal   main_uart_rx_valid : std_logic;
-   signal   main_uart_rx_data  : std_logic_vector(7 downto 0);
-   signal   main_uart_tx_ready : std_logic;
-   signal   main_uart_tx_valid : std_logic;
-   signal   main_uart_tx_data  : std_logic_vector(7 downto 0);
-
    signal   video_count_board : std_logic_vector(G_ROWS * G_COLS + 15 downto 0);
    signal   video_board       : std_logic_vector(G_ROWS * G_COLS - 1 downto 0);
    signal   video_count       : std_logic_vector(15 downto 0);
@@ -274,55 +267,27 @@ begin
          update_i => main_life_wr_en
       ); -- life_inst
 
-   controller_inst : entity work.controller
+   controller_wrapper_inst : entity work.controller_wrapper
       generic map (
-         G_ROWS => G_ROWS,
-         G_COLS => G_COLS
+         G_MAIN_CLK_HZ   => 100_000_000,
+         G_UART_BAUDRATE => 115_200,
+         G_ROWS          => G_ROWS,
+         G_COLS          => G_COLS
       )
       port map (
-         clk_i           => main_clk_o,
-         rst_i           => main_rst_o,
-         uart_rx_valid_i => main_uart_rx_valid,
-         uart_rx_ready_o => main_uart_rx_ready,
-         uart_rx_data_i  => main_uart_rx_data,
-         uart_tx_valid_o => main_uart_tx_valid,
-         uart_tx_ready_i => main_uart_tx_ready,
-         uart_tx_data_o  => main_uart_tx_data,
-         board_i         => main_life_board,
-         step_o          => main_life_step,
-         wr_index_o      => main_life_wr_index,
-         wr_value_o      => main_life_wr_value,
-         wr_en_o         => main_life_wr_en
-      ); -- controller_inst
-
-   uart_inst : entity work.uart
-      generic map (
-         G_DIVISOR => 100_000_000 / G_UART_BAUDRATE
-      )
-      port map (
-         clk_i      => main_clk_o,
-         rst_i      => main_rst_o,
-         rx_ready_i => main_uart_rx_ready,
-         rx_valid_o => main_uart_rx_valid,
-         rx_data_o  => main_uart_rx_data,
-         tx_ready_o => main_uart_tx_ready,
-         tx_valid_i => main_uart_tx_valid,
-         tx_data_i  => main_uart_tx_data,
-         uart_tx_o  => uart_tx_o,
-         uart_rx_i  => uart_rx_i
-      ); -- uart_inst
-
-   main_life_count_proc : process (main_clk_o)
-   begin
-      if rising_edge(main_clk_o) then
-         if main_life_step then
-            main_life_count <= std_logic_vector(unsigned(main_life_count) + 1);
-         end if;
-         if main_rst_o then
-            main_life_count <= (others => '0');
-         end if;
-      end if;
-   end process main_life_count_proc;
+         main_clk_i              => main_clk_o,
+         main_rst_i              => main_rst_o,
+         main_kb_key_num_i       => main_kb_key_num_i,
+         main_kb_key_pressed_n_i => main_kb_key_pressed_n_i,
+         uart_tx_o               => uart_tx_o,
+         uart_rx_i               => uart_rx_i,
+         main_life_board_i       => main_life_board,
+         main_life_step_o        => main_life_step,
+         main_life_wr_index_o    => main_life_wr_index,
+         main_life_wr_value_o    => main_life_wr_value,
+         main_life_wr_en_o       => main_life_wr_en,
+         main_life_count_o       => main_life_count
+      ); -- controller_wrapper_inst
 
 
    ---------------------------------------------------------------------------------------------
@@ -340,7 +305,7 @@ begin
          dest_out => video_count_board
       ); -- xpm_cdc_array_single_inst
 
-   (video_count, video_board)                               <= video_count_board;
+   (video_count, video_board) <= video_count_board;
 
    video_wrapper_inst : entity work.video_wrapper
       generic map (
