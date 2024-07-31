@@ -15,6 +15,7 @@ entity video_wrapper is
       video_clk_i    : in    std_logic;
       video_rst_i    : in    std_logic;
       video_board_i  : in    std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
+      video_count_i  : in    std_logic_vector(15 downto 0);
       video_ce_o     : out   std_logic;
       video_ce_ovl_o : out   std_logic;
       video_red_o    : out   std_logic_vector(7 downto 0);
@@ -45,6 +46,7 @@ begin
          video_clk_i    => video_clk_i,
          video_rst_i    => video_rst_i,
          video_board_i  => video_board_i,
+         video_count_i  => video_count_i,
          video_x_i      => video_x,
          video_y_i      => video_y,
          video_char_o   => video_char,

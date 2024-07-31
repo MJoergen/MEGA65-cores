@@ -106,17 +106,24 @@ architecture synthesis of controller is
    constant C_M65_UP_CRSR     : integer  := 73; -- cursor up
    constant C_M65_LEFT_CRSR   : integer  := 74; -- cursor left
    constant C_M65_RESTORE     : integer  := 75;
+   constant C_M65_NONE        : integer  := 79;
 
    type     init_state_type is (INIT_ST, DONE_ST);
    signal   init_state : init_state_type := INIT_ST;
 
-   type     state_type is (IDLE_ST, PRINTING_ST);
+   type     state_type is (IDLE_ST, CONTINUOUS_ST, PRINTING_ST);
    signal   state : state_type           := IDLE_ST;
 
    signal   cur_col : natural range 0 to G_COLS + 1;
    signal   cur_row : natural range 0 to G_ROWS;
 
    signal   lfsr_output : std_logic_vector(31 downto 0);
+
+   signal   key_num      : integer range 0 to 79;
+   signal   key_pressed  : std_logic;
+   signal   key_released : std_logic;
+
+   signal   step_counter : std_logic_vector(23 downto 0) := (others => '0');
 
 begin
 
@@ -175,10 +182,39 @@ begin
    uart_rx_ready_o <= '1' when state = IDLE_ST else
                       '0';
 
+   key_proc : process (clk_i)
+   begin
+      if rising_edge(clk_i) then
+         key_pressed <= '0';
+
+         if main_kb_key_pressed_n_i = '0' then
+            if key_num /= main_kb_key_num_i or key_released = '1' then
+               key_num      <= main_kb_key_num_i;
+               key_pressed  <= '1';
+               key_released <= '0';
+            end if;
+         end if;
+
+         if main_kb_key_pressed_n_i = '1' then
+            if key_num = main_kb_key_num_i then
+               key_released <= '1';
+            end if;
+         end if;
+
+         if rst_i = '1' then
+            key_pressed  <= '0';
+            key_released <= '1';
+            key_num      <= C_M65_NONE;
+         end if;
+      end if;
+   end process key_proc;
+
    fsm_proc : process (clk_i)
    begin
       if rising_edge(clk_i) then
-         step_o <= '0';
+         step_counter <= step_counter + 1;
+
+         step_o       <= '0';
          if uart_tx_ready_i = '1' then
             uart_tx_valid_o <= '0';
          end if;
@@ -205,23 +241,33 @@ begin
 
                end if;
 
-               if main_kb_key_pressed_n_i = '0' then
+               if key_pressed = '1' then
 
-                  case main_kb_key_num_i is
-
-                     when C_M65_S =>
-                        step_o <= '1';
+                  case key_num is
 
                      when C_M65_P =>
                         cur_col <= 0;
                         cur_row <= 0;
                         state   <= PRINTING_ST;
 
+                     when C_M65_S =>
+                        step_o <= '1';
+
+                     when C_M65_C =>
+                        state <= CONTINUOUS_ST;
+
                      when others =>
                         null;
 
                   end case;
 
+               end if;
+
+            when CONTINUOUS_ST =>
+               step_o <= and(step_counter);
+
+               if key_pressed = '1' then
+                  state <= IDLE_ST;
                end if;
 
             when PRINTING_ST =>

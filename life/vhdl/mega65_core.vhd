@@ -21,8 +21,8 @@ entity mega65_core is
    generic (
       G_FONT_PATH     : string                                         := "";
       G_UART_BAUDRATE : natural                                        := 115_200;
-      G_ROWS          : integer                                        := 30;
-      G_COLS          : integer                                        := 20;
+      G_COLS          : integer                                        := 40;
+      G_ROWS          : integer                                        := 24;
       G_CELLS_INIT    : std_logic_vector(G_ROWS * G_COLS - 1 downto 0) := (others => '0');
       G_BOARD         : string -- Which platform are we running on.
    );

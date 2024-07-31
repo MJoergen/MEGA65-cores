@@ -62,8 +62,8 @@ begin
    -- Calculate character coordinates, within 40x30
    black_0        <= '1' when vga_hcount_i >= G_VIDEO_MODE.H_PIXELS or vga_vcount_i >= G_VIDEO_MODE.V_PIXELS else
                      '0';
-   pix_col_0      <= to_integer(vga_hcount_i(4 downto 2));
-   pix_row_0      <= 7 - to_integer(vga_vcount_i(4 downto 2));
+   pix_col_0      <= to_integer(vga_hcount_i(2 downto 0));
+   pix_row_0      <= 7 - to_integer(vga_vcount_i(2 downto 0));
    bitmap_index_0 <= pix_row_0 * 8 + pix_col_0;
 
    vga_x_o        <= vga_hcount_i(10 downto 3);

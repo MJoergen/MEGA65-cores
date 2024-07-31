@@ -21,7 +21,7 @@ entity mega65_core is
    generic (
       G_FONT_PATH     : string  := "";
       G_UART_BAUDRATE : natural := 115_200;
-      G_NUM_QUEENS    : natural := 8;
+      G_NUM_QUEENS    : natural := 12;
       G_BOARD         : string -- Which platform are we running on.
    );
    port (
@@ -231,8 +231,11 @@ architecture synthesis of mega65_core is
    signal   main_queens_step  : std_logic;
    signal   main_queens_board : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
    signal   main_queens_done  : std_logic;
+   signal   main_queens_count : std_logic_vector(15 downto 0);
 
-   signal   video_board : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
+   signal   video_count_board : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS + 15 downto 0);
+   signal   video_board       : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
+   signal   video_count       : std_logic_vector(15 downto 0);
 
 begin
 
@@ -277,7 +280,8 @@ begin
          main_queens_valid_i     => main_queens_valid,
          main_queens_result_i    => main_queens_board,
          main_queens_done_i      => main_queens_done,
-         main_queens_step_o      => main_queens_step
+         main_queens_step_o      => main_queens_step,
+         main_queens_count_o     => main_queens_count
       ); -- controller_wrapper_inst
 
 
@@ -287,14 +291,16 @@ begin
 
    xpm_cdc_array_single_inst : component xpm_cdc_array_single
       generic map (
-         WIDTH => G_NUM_QUEENS * G_NUM_QUEENS
+         WIDTH => G_NUM_QUEENS * G_NUM_QUEENS + 16
       )
       port map (
          src_clk  => main_clk_o,
-         src_in   => main_queens_board,
+         src_in   => main_queens_count & main_queens_board,
          dest_clk => video_clk_o,
-         dest_out => video_board
+         dest_out => video_count_board
       ); -- xpm_cdc_array_single_inst
+
+   (video_count, video_board) <= video_count_board;
 
    video_wrapper_inst : entity work.video_wrapper
       generic map (
@@ -306,6 +312,7 @@ begin
          video_clk_i    => video_clk_o,
          video_rst_i    => video_rst_o,
          video_board_i  => video_board,
+         video_count_i  => video_count,
          video_ce_o     => video_ce_o,
          video_ce_ovl_o => video_ce_ovl_o,
          video_red_o    => video_red_o,

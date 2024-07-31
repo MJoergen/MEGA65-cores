@@ -19,15 +19,16 @@ entity controller_wrapper is
    port (
       main_clk_i              : in    std_logic;
       main_rst_i              : in    std_logic;
-      main_kb_key_num_i       : in    integer range 0 to 79;
       main_kb_key_pressed_n_i : in    std_logic;
+      main_kb_key_num_i       : in    integer range 0 to 79;
       uart_tx_o               : out   std_logic;
       uart_rx_i               : in    std_logic;
       main_queens_ready_o     : out   std_logic;
       main_queens_valid_i     : in    std_logic;
       main_queens_result_i    : in    std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
       main_queens_done_i      : in    std_logic;
-      main_queens_step_o      : out   std_logic
+      main_queens_step_o      : out   std_logic;
+      main_queens_count_o     : out   std_logic_vector(15 downto 0)
    );
 end entity controller_wrapper;
 
@@ -64,20 +65,34 @@ begin
          G_NUM_QUEENS => G_NUM_QUEENS
       )
       port map (
-         clk_i           => main_clk_i,
-         rst_i           => main_rst_i,
-         uart_rx_valid_i => main_uart_rx_valid,
-         uart_rx_ready_o => main_uart_rx_ready,
-         uart_rx_data_i  => main_uart_rx_data,
-         uart_tx_valid_o => main_uart_tx_valid,
-         uart_tx_ready_i => main_uart_tx_ready,
-         uart_tx_data_o  => main_uart_tx_data,
-         ready_o         => main_queens_ready_o,
-         valid_i         => main_queens_valid_i,
-         result_i        => main_queens_result_i,
-         done_i          => main_queens_done_i,
-         step_o          => main_queens_step_o
+         clk_i                   => main_clk_i,
+         rst_i                   => main_rst_i,
+         main_kb_key_pressed_n_i => main_kb_key_pressed_n_i,
+         main_kb_key_num_i       => main_kb_key_num_i,
+         uart_rx_valid_i         => main_uart_rx_valid,
+         uart_rx_ready_o         => main_uart_rx_ready,
+         uart_rx_data_i          => main_uart_rx_data,
+         uart_tx_valid_o         => main_uart_tx_valid,
+         uart_tx_ready_i         => main_uart_tx_ready,
+         uart_tx_data_o          => main_uart_tx_data,
+         ready_o                 => main_queens_ready_o,
+         valid_i                 => main_queens_valid_i,
+         result_i                => main_queens_result_i,
+         done_i                  => main_queens_done_i,
+         step_o                  => main_queens_step_o
       ); -- controller_inst
+
+   main_queens_count_proc : process (main_clk_i)
+   begin
+      if rising_edge(main_clk_i) then
+         if main_queens_valid_i then
+            main_queens_count_o <= main_queens_count_o + 1;
+         end if;
+         if main_rst_i then
+            main_queens_count_o <= (others => '0');
+         end if;
+      end if;
+   end process main_queens_count_proc;
 
 end architecture synthesis;
 
