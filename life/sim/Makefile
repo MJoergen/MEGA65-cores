@@ -1,11 +1,11 @@
 SRCS += ../../M2M/vhdl/av_pipeline/video_modes_pkg.vhd
 SRCS += ../../M2M/vhdl/uart.vhd
+SRCS += ../../M2M/vhdl/av_pipeline/vga_controller.vhd
 
 SRCS += ../vhdl/clk.vhd
 SRCS += ../vhdl/life.vhd
 SRCS += ../vhdl/controller.vhd
 SRCS += ../vhdl/font.vhd
-SRCS += ../vhdl/vga.vhd
 SRCS += ../vhdl/divexact.vhd
 SRCS += ../vhdl/slv_to_dec.vhd
 SRCS += ../vhdl/vga_chars.vhd

@@ -21,7 +21,7 @@
 --     Corrected two minor "off-by-one" errors
 --   Version 1.2 May 16, 2021 Michael Jørgensen
 --     Clean-up, adjusted to fit gbc4mega65 and MiSTer2MEGA coding style
---
+--    
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -29,27 +29,27 @@ use ieee.std_logic_1164.all;
 
 entity vga_controller is
    port (
-      h_pulse   : in  integer;    -- horizontal sync pulse width in pixels
-      h_bp      : in  integer;    -- horizontal back porch width in pixels
-      h_pixels  : in  integer;    -- horizontal display width in pixels
-      h_fp      : in  integer;    -- horizontal front porch width in pixels
-      h_pol     : in  std_logic;  -- horizontal sync pulse polarity (1 = positive, 0 = negative)
-      v_pulse   : in  integer;    -- vertical sync pulse width in rows
-      v_bp      : in  integer;    -- vertical back porch width in rows
-      v_pixels  : in  integer;    -- vertical display width in rows
-      v_fp      : in  integer;    -- vertical front porch width in rows
-      v_pol     : in  std_logic;  -- vertical sync pulse polarity (1 = positive, 0 = negative)
-      clk_i     : in  std_logic;  -- pixel clock at frequency of vga mode being used
-      ce_i      : in  std_logic;  -- Clock enable
-      reset_n   : in  std_logic;  -- active low sycnchronous reset
-      h_sync    : out std_logic;  -- horiztonal sync pulse
-      v_sync    : out std_logic;  -- vertical sync pulse
-      h_blank   : out std_logic;  -- horiztonal blanking
-      v_blank   : out std_logic;  -- vertical blanking
-      column    : out integer;    -- horizontal pixel coordinate
-      row       : out integer;    -- vertical pixel coordinate
-      n_blank   : out std_logic;  -- direct blacking output to dac
-      n_sync    : out std_logic   -- sync-on-green output to dac
+      h_pulse   : in  integer range 0 to 2047;  -- horizontal sync pulse width in pixels
+      h_bp      : in  integer range 0 to 2047;  -- horizontal back porch width in pixels
+      h_pixels  : in  integer range 0 to 2047;  -- horizontal display width in pixels
+      h_fp      : in  integer range 0 to 2047;  -- horizontal front porch width in pixels
+      h_pol     : in  std_logic;                -- horizontal sync pulse polarity (1 = positive, 0 = negative)
+      v_pulse   : in  integer range 0 to 2047;  -- vertical sync pulse width in rows
+      v_bp      : in  integer range 0 to 2047;  -- vertical back porch width in rows
+      v_pixels  : in  integer range 0 to 2047;  -- vertical display width in rows
+      v_fp      : in  integer range 0 to 2047;  -- vertical front porch width in rows
+      v_pol     : in  std_logic;                -- vertical sync pulse polarity (1 = positive, 0 = negative)
+      clk_i     : in  std_logic;                -- pixel clock at frequency of vga mode being used
+      ce_i      : in  std_logic;                -- Clock enable
+      reset_n   : in  std_logic;                -- active low sycnchronous reset
+      h_sync    : out std_logic;                -- horiztonal sync pulse
+      v_sync    : out std_logic;                -- vertical sync pulse
+      h_blank   : out std_logic;                -- horiztonal blanking
+      v_blank   : out std_logic;                -- vertical blanking
+      column    : out integer range 0 to 2047;  -- horizontal pixel coordinate
+      row       : out integer range 0 to 2047;  -- vertical pixel coordinate
+      n_blank   : out std_logic;                -- direct blacking output to dac
+      n_sync    : out std_logic                 -- sync-on-green output to dac
    );
 end vga_controller;
 
@@ -70,12 +70,12 @@ begin
 
    n_blank <= '1';  -- no direct blanking
    n_sync  <= '0';  -- no sync on green
-
+   
    process (clk_i)
       variable h_count : natural range 0 to 2047 := 0;  -- horizontal counter (counts the columns)
       variable v_count : natural range 0 to 2047 := 0;  -- vertical counter (counts the rows)
    begin
-
+   
       if rising_edge(clk_i) then
 
          if ce_i = '1' then
@@ -97,14 +97,14 @@ begin
             else
                h_sync <= not h_pol;       -- deassert horizontal sync pulse
             end if;
-
+            
             -- vertical sync signal
             if v_count >= v_sync_first and v_count <= v_sync_last then
                v_sync <= v_pol;           -- assert vertical sync pulse
             else
                v_sync <= not v_pol;       -- deassert vertical sync pulse
             end if;
-
+            
             -- set pixel coordinates
             if h_count < h_pixels then    -- horizontal display time
                column <= h_count;         -- set horizontal pixel coordinate

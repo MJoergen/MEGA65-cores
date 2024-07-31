@@ -7,6 +7,7 @@ library work;
 
 entity vga_wrapper is
    generic (
+      G_VIDEO_MODE : video_modes_t;
       G_FONT_PATH : string := "";
       G_ROWS      : integer;
       G_COLS      : integer
@@ -26,7 +27,6 @@ end entity vga_wrapper;
 
 architecture synthesis of vga_wrapper is
 
-   constant C_VIDEO_MODE : video_modes_t                 := C_HDMI_640x480p_60;
    constant C_FONT_FILE  : string                        := G_FONT_PATH & "font8x8.txt";
 
    -- Define colours
@@ -34,8 +34,8 @@ architecture synthesis of vga_wrapper is
    constant C_PIXEL_GREY  : std_logic_vector(7 downto 0) := B"010_010_01";
    constant C_PIXEL_LIGHT : std_logic_vector(7 downto 0) := B"100_100_10";
 
-   constant C_START_X : std_logic_vector(7 downto 0)     := to_stdlogicvector(C_VIDEO_MODE.H_PIXELS / 64 - G_COLS / 2, 8);
-   constant C_START_Y : std_logic_vector(7 downto 0)     := to_stdlogicvector(C_VIDEO_MODE.V_PIXELS / 64 - G_ROWS / 2, 8);
+   constant C_START_X : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.H_PIXELS / 64 - G_COLS / 2, 8);
+   constant C_START_Y : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.V_PIXELS / 64 - G_ROWS / 2, 8);
 
    signal   vga_x      : std_logic_vector(7 downto 0);
    signal   vga_y      : std_logic_vector(7 downto 0);
@@ -85,7 +85,7 @@ begin
    vga_chars_inst : entity work.vga_chars
       generic map (
          G_FONT_FILE  => C_FONT_FILE,
-         G_VIDEO_MODE => C_VIDEO_MODE
+         G_VIDEO_MODE => G_VIDEO_MODE
       )
       port map (
          vga_clk_i    => vga_clk_i,
