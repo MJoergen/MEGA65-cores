@@ -11,6 +11,7 @@ SRCS += ../vhdl/slv_to_dec.vhd
 SRCS += ../vhdl/vga_chars.vhd
 SRCS += ../vhdl/vga_wrapper.vhd
 SRCS += ../vhdl/shift_registers.vhd
+SRCS += ../vhdl/video_wrapper.vhd
 SRCS += ../vhdl/mega65_core.vhd
 SRCS += uart_dumper.vhd
 SRCS += tb_mega65_core.vhd
