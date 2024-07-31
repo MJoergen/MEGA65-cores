@@ -3,4 +3,5 @@
 * life
 * queens
 * voronoi
+* mandelbrot
 

@@ -1,28 +1,13 @@
-----------------------------------------------------------------------------------
--- MiSTer2MEGA65 Framework
---
--- MEGA65 main file that contains the whole machine
---
--- MiSTer2MEGA65 done by sy2002 and MJoergen in 2022 and licensed under GPL v3
-----------------------------------------------------------------------------------
-
 library ieee;
    use ieee.std_logic_1164.all;
    use ieee.numeric_std.all;
 
-library xpm;
-   use xpm.vcomponents.all;
-
 library work;
    use work.video_modes_pkg.all;
-   use work.globals.all;
 
 entity mega65_core is
    generic (
-      G_FONT_PATH     : string  := "";
-      G_UART_BAUDRATE : natural := 115_200;
-      G_NUM_QUEENS    : natural := 8;
-      G_BOARD         : string -- Which platform are we running on.
+      G_BOARD : string -- Which platform are we running on.
    );
    port (
       --------------------------------------------------------------------------------------------------------
@@ -226,17 +211,33 @@ architecture synthesis of mega65_core is
 
    constant C_VIDEO_MODE : video_modes_t := C_HDMI_640x480p_60;
 
-   signal   main_queens_ready : std_logic;
-   signal   main_queens_valid : std_logic;
-   signal   main_queens_step  : std_logic;
-   signal   main_queens_board : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
-   signal   main_queens_done  : std_logic;
+   constant C_MAX_COUNT     : integer := 511;
+   constant C_NUM_ROWS      : integer := 480;
+   constant C_NUM_COLS      : integer := 640;
+   constant C_NUM_ITERATORS : integer := 240;
 
-   signal   video_board : std_logic_vector(G_NUM_QUEENS * G_NUM_QUEENS - 1 downto 0);
+   signal   main_startx : std_logic_vector(17 downto 0);
+   signal   main_starty : std_logic_vector(17 downto 0);
+   signal   main_stepx  : std_logic_vector(17 downto 0);
+   signal   main_stepy  : std_logic_vector(17 downto 0);
+
+   signal   main_start  : std_logic;
+   signal   main_active : std_logic;
+   signal   main_done   : std_logic;
+
+   signal   main_wr_addr : std_logic_vector(18 downto 0);
+   signal   main_wr_data : std_logic_vector( 8 downto 0);
+   signal   main_wr_en   : std_logic;
+
+   signal   video_addr : std_logic_vector(18 downto 0);
+   signal   video_data : std_logic_vector(7 downto 0);
 
 begin
 
-   -- MMCME2_ADV clock generators:
+   --------------------------------------------------
+   -- Instantiate Clock generation
+   --------------------------------------------------
+
    clk_inst : entity work.clk
       port map (
          sys_clk_i   => clk_i,
@@ -246,66 +247,76 @@ begin
          main_rst_o  => main_rst_o
       ); -- clk_inst
 
-   -- Instantiate queens
-   queens_inst : entity work.queens
-      generic map (
-         G_NUM_QUEENS => G_NUM_QUEENS
-      )
-      port map (
-         clk_i   => main_clk_o,
-         rst_i   => main_rst_o,
-         en_i    => main_queens_ready and main_queens_step,
-         board_o => main_queens_board,
-         valid_o => main_queens_valid,
-         done_o  => main_queens_done
-      ); -- queens_inst
 
-   controller_wrapper_inst : entity work.controller_wrapper
-      generic map (
-         G_MAIN_CLK_HZ   => CORE_CLK_SPEED,
-         G_UART_BAUDRATE => 115_200,
-         G_NUM_QUEENS    => G_NUM_QUEENS
-      )
+   controller_inst : entity work.controller
       port map (
          main_clk_i              => main_clk_o,
          main_rst_i              => main_rst_o,
-         main_kb_key_num_i       => main_kb_key_num_i,
          main_kb_key_pressed_n_i => main_kb_key_pressed_n_i,
-         uart_tx_o               => uart_tx_o,
-         uart_rx_i               => uart_rx_i,
-         main_queens_ready_o     => main_queens_ready,
-         main_queens_valid_i     => main_queens_valid,
-         main_queens_result_i    => main_queens_board,
-         main_queens_done_i      => main_queens_done,
-         main_queens_step_o      => main_queens_step
-      ); -- controller_wrapper_inst
+         main_kb_key_num_i       => main_kb_key_num_i,
+         main_start_o            => main_start,
+         main_done_i             => main_done,
+         main_startx_o           => main_startx,
+         main_starty_o           => main_starty,
+         main_stepx_o            => main_stepx,
+         main_stepy_o            => main_stepy
+      ); -- controller_inst
 
 
-   ---------------------------------------------------------------------------------------------
-   -- Video output
-   ---------------------------------------------------------------------------------------------
+   --------------------------------------------------
+   -- Instantiate job dispatcher
+   --------------------------------------------------
 
-   xpm_cdc_array_single_inst : component xpm_cdc_array_single
+   dispatcher_inst : entity work.dispatcher
       generic map (
-         WIDTH => G_NUM_QUEENS * G_NUM_QUEENS
+         G_MAX_COUNT     => C_MAX_COUNT,
+         G_NUM_ROWS      => C_NUM_ROWS,
+         G_NUM_COLS      => C_NUM_COLS,
+         G_NUM_ITERATORS => C_NUM_ITERATORS
       )
       port map (
-         src_clk  => main_clk_o,
-         src_in   => main_queens_board,
-         dest_clk => video_clk_o,
-         dest_out => video_board
-      ); -- xpm_cdc_array_single_inst
+         clk_i          => main_clk_o,
+         rst_i          => main_rst_o,
+         start_i        => main_start,
+         startx_i       => main_startx,
+         starty_i       => main_starty,
+         stepx_i        => main_stepx,
+         stepy_i        => main_stepy,
+         wr_addr_o      => main_wr_addr,
+         wr_data_o      => main_wr_data,
+         wr_en_o        => main_wr_en,
+         done_o         => main_done,
+         wait_cnt_tot_o => open
+      ); -- dispatcher_inst
+
+
+   ------------------------------
+   -- Instantiate display memory
+   ------------------------------
+
+   disp_mem_inst : entity work.disp_mem
+      port map (
+         wr_clk_i  => main_clk_o,
+         wr_rst_i  => main_rst_o,
+         wr_addr_i => main_wr_addr,
+         wr_data_i => main_wr_data(7 downto 0),
+         wr_en_i   => main_wr_en,
+         --
+         rd_clk_i  => video_clk_o,
+         rd_rst_i  => video_rst_o,
+         rd_addr_i => video_addr,
+         rd_data_o => video_data
+      ); -- disp_mem_inst
 
    video_wrapper_inst : entity work.video_wrapper
       generic map (
-         G_VIDEO_MODE => C_VIDEO_MODE,
-         G_FONT_PATH  => G_FONT_PATH,
-         G_NUM_QUEENS => G_NUM_QUEENS
+         G_VIDEO_MODE => C_VIDEO_MODE
       )
       port map (
          video_clk_i    => video_clk_o,
          video_rst_i    => video_rst_o,
-         video_board_i  => video_board,
+         video_addr_o   => video_addr,
+         video_data_i   => video_data,
          video_ce_o     => video_ce_o,
          video_ce_ovl_o => video_ce_ovl_o,
          video_red_o    => video_red_o,
@@ -382,7 +393,7 @@ begin
    qnice_osm_cfg_scaling_o <= (others => '1');
    qnice_retro15khz_o      <= '0';
    qnice_scandoubler_o     <= '0';       -- no scandoubler
-   qnice_video_mode_o      <= C_VIDEO_HDMI_640_60;
+   qnice_video_mode_o      <= C_VIDEO_SVGA_800_60;
    qnice_zoom_crop_o       <= '0';       -- 0 = no zoom/crop
 
 end architecture synthesis;
