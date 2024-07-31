@@ -25,44 +25,33 @@ end entity vga_chars;
 
 architecture synthesis of vga_chars is
 
-   constant H_MAX : natural := G_VIDEO_MODE.H_PIXELS + G_VIDEO_MODE.H_FP     + G_VIDEO_MODE.H_PULSE  + G_VIDEO_MODE.H_BP;
-   constant V_MAX : natural := G_VIDEO_MODE.V_PIXELS + G_VIDEO_MODE.V_FP     + G_VIDEO_MODE.V_PULSE  + G_VIDEO_MODE.V_BP;
-
    -- A single character bitmap is defined by 8x8 = 64 bits.
-   subtype  BITMAP_TYPE is std_logic_vector(63 downto 0);
+   subtype BITMAP_TYPE is std_logic_vector(63 downto 0);
 
    -- Stage 0
-   signal   black_0    : std_logic;
-   signal   char_col_0 : integer range 0 to H_MAX / 16 - 1;
-   signal   char_row_0 : integer range 0 to V_MAX / 16 - 1;
-   signal   pix_col_0  : integer range 0 to 7;
-   signal   pix_row_0  : integer range 0 to 7;
+   signal  black_0        : std_logic;
+   signal  bitmap_index_0 : integer range 0 to 63;
+   signal  pix_col_0      : integer range 0 to 7;
+   signal  pix_row_0      : integer range 0 to 7;
 
    -- Stage 1
-   signal   black_1       : std_logic;
-   signal   char_col_1    : integer range 0 to H_MAX / 16 - 1;
-   signal   char_row_1    : integer range 0 to V_MAX / 16 - 1;
-   signal   pix_col_1     : integer range 0 to 7;
-   signal   pix_row_1     : integer range 0 to 7;
-   signal   nibble_1      : std_logic_vector(3 downto 0);
-   signal   char_nibble_1 : std_logic_vector(7 downto 0);
-   signal   char_txt_1    : std_logic_vector(7 downto 0);
-   signal   char_1        : std_logic_vector(7 downto 0);
-   signal   colors_1      : std_logic_vector(15 downto 0);
+   signal  black_1        : std_logic;
+   signal  bitmap_index_1 : integer range 0 to 63;
+   signal  nibble_1       : std_logic_vector(3 downto 0);
+   signal  char_nibble_1  : std_logic_vector(7 downto 0);
+   signal  char_txt_1     : std_logic_vector(7 downto 0);
+   signal  char_1         : std_logic_vector(7 downto 0);
+   signal  colors_1       : std_logic_vector(15 downto 0);
 
    -- Stage 2
-   signal   black_2        : std_logic;
-   signal   bitmap_2       : BITMAP_TYPE;
-   signal   char_col_2     : integer range 0 to H_MAX / 16 - 1;
-   signal   char_row_2     : integer range 0 to V_MAX / 16 - 1;
-   signal   pix_col_2      : integer range 0 to 7;
-   signal   pix_row_2      : integer range 0 to 7;
-   signal   bitmap_index_2 : integer range 0 to 63;
-   signal   pix_2          : std_logic;
-   signal   colors_2       : std_logic_vector(15 downto 0);
+   signal  black_2        : std_logic;
+   signal  bitmap_2       : BITMAP_TYPE;
+   signal  bitmap_index_2 : integer range 0 to 63;
+   signal  pix_2          : std_logic;
+   signal  colors_2       : std_logic_vector(15 downto 0);
 
    -- Stage 3
-   signal   pixel_3 : std_logic_vector(7 downto 0);
+   signal  pixel_3 : std_logic_vector(7 downto 0);
 
 begin
 
@@ -71,15 +60,14 @@ begin
    --------------------------------------------------
 
    -- Calculate character coordinates, within 40x30
-   black_0    <= '1' when vga_hcount_i >= G_VIDEO_MODE.H_PIXELS or vga_vcount_i >= G_VIDEO_MODE.V_PIXELS else
-                 '0';
-   char_col_0 <= to_integer(vga_hcount_i(10 downto 5));
-   char_row_0 <= to_integer(vga_vcount_i(10 downto 5));
-   pix_col_0  <= to_integer(vga_hcount_i(4 downto 2));
-   pix_row_0  <= 7 - to_integer(vga_vcount_i(4 downto 2));
+   black_0        <= '1' when vga_hcount_i >= G_VIDEO_MODE.H_PIXELS or vga_vcount_i >= G_VIDEO_MODE.V_PIXELS else
+                     '0';
+   pix_col_0      <= to_integer(vga_hcount_i(4 downto 2));
+   pix_row_0      <= 7 - to_integer(vga_vcount_i(4 downto 2));
+   bitmap_index_0 <= pix_row_0 * 8 + pix_col_0;
 
-   vga_x_o    <= "00" & vga_hcount_i(10 downto 5);
-   vga_y_o    <= "00" & vga_vcount_i(10 downto 5);
+   vga_x_o        <= vga_hcount_i(10 downto 3);
+   vga_y_o        <= vga_vcount_i(10 downto 3);
 
 
    --------------------------------------------------
@@ -89,17 +77,14 @@ begin
    stage1_proc : process (vga_clk_i)
    begin
       if rising_edge(vga_clk_i) then
-         black_1    <= black_0;
-         char_col_1 <= char_col_0;
-         char_row_1 <= char_row_0;
-         pix_col_1  <= pix_col_0;
-         pix_row_1  <= pix_row_0;
+         black_1        <= black_0;
+         bitmap_index_1 <= bitmap_index_0;
       end if;
    end process stage1_proc;
 
    -- Calculate character to display at current position
-   char_1     <= vga_char_i;
-   colors_1   <= vga_colors_i;
+   char_1         <= vga_char_i;
+   colors_1       <= vga_colors_i;
 
 
    --------------------------------------------------
@@ -120,18 +105,14 @@ begin
    stage2_proc : process (vga_clk_i)
    begin
       if rising_edge(vga_clk_i) then
-         black_2    <= black_1;
-         char_col_2 <= char_col_1;
-         char_row_2 <= char_row_1;
-         pix_col_2  <= pix_col_1;
-         pix_row_2  <= pix_row_1;
-         colors_2   <= colors_1;
+         black_2        <= black_1;
+         bitmap_index_2 <= bitmap_index_1;
+         colors_2       <= colors_1;
       end if;
    end process stage2_proc;
 
    -- Calculate pixel at current position ('0' or '1')
-   bitmap_index_2 <= pix_row_2 * 8 + pix_col_2;
-   pix_2          <= bitmap_2(bitmap_index_2);
+   pix_2     <= bitmap_2(bitmap_index_2);
 
 
    --------------------------------------------------
@@ -155,7 +136,7 @@ begin
       end if;
    end process stage3_proc;
 
-   vga_rgb_o      <= pixel_3;
+   vga_rgb_o <= pixel_3;
 
 end architecture synthesis;
 

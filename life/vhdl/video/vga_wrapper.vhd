@@ -8,9 +8,9 @@ library work;
 entity vga_wrapper is
    generic (
       G_VIDEO_MODE : video_modes_t;
-      G_FONT_PATH : string := "";
-      G_ROWS      : integer;
-      G_COLS      : integer
+      G_FONT_PATH  : string := "";
+      G_ROWS       : integer;
+      G_COLS       : integer
    );
    port (
       vga_clk_i    : in    std_logic;
@@ -27,15 +27,15 @@ end entity vga_wrapper;
 
 architecture synthesis of vga_wrapper is
 
-   constant C_FONT_FILE  : string                        := G_FONT_PATH & "font8x8.txt";
+   constant C_FONT_FILE : string                         := G_FONT_PATH & "font8x8.txt";
 
    -- Define colours
    constant C_PIXEL_DARK  : std_logic_vector(7 downto 0) := B"001_001_01";
    constant C_PIXEL_GREY  : std_logic_vector(7 downto 0) := B"010_010_01";
    constant C_PIXEL_LIGHT : std_logic_vector(7 downto 0) := B"100_100_10";
 
-   constant C_START_X : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.H_PIXELS / 64 - G_COLS / 2, 8);
-   constant C_START_Y : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.V_PIXELS / 64 - G_ROWS / 2, 8);
+   constant C_START_X : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.H_PIXELS / 16 - G_COLS / 2, 8);
+   constant C_START_Y : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.V_PIXELS / 16 - G_ROWS / 2, 8);
 
    signal   vga_x      : std_logic_vector(7 downto 0);
    signal   vga_y      : std_logic_vector(7 downto 0);
@@ -51,6 +51,23 @@ architecture synthesis of vga_wrapper is
 
 begin
 
+   vga_chars_inst : entity work.vga_chars
+      generic map (
+         G_FONT_FILE  => C_FONT_FILE,
+         G_VIDEO_MODE => G_VIDEO_MODE
+      )
+      port map (
+         vga_clk_i    => vga_clk_i,
+         vga_hcount_i => vga_hcount_i,
+         vga_vcount_i => vga_vcount_i,
+         vga_blank_i  => vga_blank_i,
+         vga_x_o      => vga_x,
+         vga_y_o      => vga_y,
+         vga_char_i   => vga_char,
+         vga_colors_i => vga_colors,
+         vga_rgb_o    => vga_rgb
+      ); -- vga_chars_inst
+
    char_proc : process (vga_clk_i)
       variable vga_index_v     : natural range 0 to G_ROWS * G_COLS - 1;
       variable vga_dec_index_v : natural range 0 to 4;
@@ -63,9 +80,9 @@ begin
             vga_y >= C_START_Y and vga_y < C_START_Y + G_ROWS then
             vga_index_v := to_integer((G_ROWS - 1 - (vga_y - C_START_Y)) * G_COLS + (G_COLS - 1 - (vga_x - C_START_X)));
             if vga_board_i(vga_index_v) = '1' then
-               vga_char <= X"58";                                                                                        -- 'X'
+               vga_char <= X"58";
             else
-               vga_char <= X"2E";                                                                                        -- '.'
+               vga_char <= X"2E";
             end if;
             vga_colors <= C_PIXEL_DARK & C_PIXEL_LIGHT;
          end if;
@@ -81,23 +98,6 @@ begin
          end if;
       end if;
    end process char_proc;
-
-   vga_chars_inst : entity work.vga_chars
-      generic map (
-         G_FONT_FILE  => C_FONT_FILE,
-         G_VIDEO_MODE => G_VIDEO_MODE
-      )
-      port map (
-         vga_clk_i    => vga_clk_i,
-         vga_hcount_i => vga_hcount_i,
-         vga_vcount_i => vga_vcount_i,
-         vga_blank_i  => vga_blank_i,
-         vga_rgb_o    => vga_rgb,
-         vga_x_o      => vga_x,
-         vga_y_o      => vga_y,
-         vga_char_i   => vga_char,
-         vga_colors_i => vga_colors
-      ); -- vga_chars_inst
 
    vga_rgb_o <= vga_rgb & vga_rgb & vga_rgb;
 
