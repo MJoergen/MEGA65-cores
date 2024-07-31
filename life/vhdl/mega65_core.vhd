@@ -15,6 +15,7 @@ library xpm;
 
 library work;
    use work.video_modes_pkg.all;
+   use work.globals.all;
 
 entity mega65_core is
    generic (
@@ -269,7 +270,7 @@ begin
 
    controller_wrapper_inst : entity work.controller_wrapper
       generic map (
-         G_MAIN_CLK_HZ   => 100_000_000,
+         G_MAIN_CLK_HZ   => CORE_CLK_SPEED,
          G_UART_BAUDRATE => 115_200,
          G_ROWS          => G_ROWS,
          G_COLS          => G_COLS

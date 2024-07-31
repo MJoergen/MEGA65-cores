@@ -1,6 +1,4 @@
 ; ****************************************************************************
-; Commodore 64 for MEGA65 (C64MEGA65) QNICE ROM
-;
 ; Main program that is used to build m2m-rom.rom by make-rom.sh.
 ; The ROM is loaded by qnice.vhd
 ;
