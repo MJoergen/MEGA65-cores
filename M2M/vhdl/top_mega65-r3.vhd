@@ -368,6 +368,12 @@ architecture synthesis of mega65_r3 is
    signal i2c_sda                : std_logic := 'H';
    signal i2c_scl                : std_logic := 'H';
 
+   signal core_uart_tx : std_logic;
+   signal core_uart_rx : std_logic;
+
+   signal framework_uart_rx : std_logic;
+   signal framework_uart_tx : std_logic;
+
 begin
 
    -----------------------------------------------------------------------------------------
@@ -492,8 +498,8 @@ begin
       -- Connect to I/O ports
       clk_i                   => clk_i,
       reset_n_i               => reset_n,
-      uart_rxd_i              => uart_rxd_i,
-      uart_txd_o              => uart_txd_o,
+      uart_rxd_i              => framework_uart_rx,
+      uart_txd_o              => framework_uart_tx,
       vga_red_o               => vga_red_o,
       vga_green_o             => vga_green_o,
       vga_blue_o              => vga_blue_o,
@@ -661,6 +667,10 @@ begin
       grove_sda_io            => grove_sda_io,
       grove_scl_io            => grove_scl_io
    ); -- i_framework
+
+   core_uart_rx      <= uart_rxd_i;
+   framework_uart_rx <= uart_rxd_i;
+   uart_txd_o <= core_uart_tx and framework_uart_tx;
 
 
    ---------------------------------------------------------------------------------------------------------------
@@ -874,7 +884,9 @@ begin
          --
          cart_addr_oe_o    => cart_addr_oe, -- 0 : tristate (i.e. input), 1 : output
          cart_a_i          => cart_a_in,
-         cart_a_o          => cart_a_out
+         cart_a_o          => cart_a_out,
+         uart_tx_o         => core_uart_tx,
+         uart_rx_i         => core_uart_rx
       ); -- CORE
 
 end architecture synthesis;
