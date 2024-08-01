@@ -4,9 +4,8 @@ library ieee;
 
 entity life is
    generic (
-      G_ROWS       : integer;
-      G_COLS       : integer;
-      G_CELLS_INIT : std_logic_vector
+      G_ROWS : integer;
+      G_COLS : integer
    );
    port (
       -- Clock, reset, and enable
@@ -189,7 +188,7 @@ begin
             board(index_i) <= value_i;
          end if;
          if rst_i = '1' then
-            board <= G_CELLS_INIT;
+            board <= (others => '0');
          end if;
       end if;
    end process board_proc;

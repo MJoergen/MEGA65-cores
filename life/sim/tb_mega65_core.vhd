@@ -12,10 +12,9 @@ library ieee;
 
 entity tb_mega65_core is
    generic (
-      G_ROWS       : integer                                        := 8;
-      G_COLS       : integer                                        := 8;
-      G_CELLS_INIT : std_logic_vector(G_ROWS * G_COLS - 1 downto 0) := X"1020304050607080";
-      G_BOARD      : string -- Which platform are we running on.
+      G_ROWS  : integer                                        := 8;
+      G_COLS  : integer                                        := 8;
+      G_BOARD : string -- Which platform are we running on.
    );
 end entity tb_mega65_core;
 
@@ -103,11 +102,10 @@ begin
    -- Instantiate DUT
    mega65_core_inst : entity work.mega65_core
       generic map (
-         G_FONT_PATH     => "../vhdl/",
+         G_FONT_PATH     => "../vhdl/video/",
          G_UART_BAUDRATE => C_UART_BAUDRATE,
          G_ROWS          => G_ROWS,
          G_COLS          => G_COLS,
-         G_CELLS_INIT    => G_CELLS_INIT,
          G_BOARD         => G_BOARD
       )
       port map (

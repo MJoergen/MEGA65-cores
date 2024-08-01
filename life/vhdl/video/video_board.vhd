@@ -16,8 +16,9 @@ entity video_board is
       video_rst_i    : in    std_logic;
       video_x_i      : in    std_logic_vector(7 downto 0);
       video_y_i      : in    std_logic_vector(7 downto 0);
-      video_board_i  : in    std_logic_vector(G_ROWS * G_COLS - 1 downto 0);
       video_count_i  : in    std_logic_vector(15 downto 0);
+      video_addr_o   : out   std_logic_vector(19 downto 0);
+      video_data_i   : in    std_logic;
       video_char_o   : out   std_logic_vector(7 downto 0);
       video_colors_o : out   std_logic_vector(15 downto 0)
    );
@@ -41,8 +42,9 @@ architecture synthesis of video_board is
 
 begin
 
+   video_addr_o <= "0000" & (video_y_i - C_START_Y) * G_COLS + (video_x_i - C_START_X);
+
    char_proc : process (video_clk_i)
-      variable video_index_v     : natural range 0 to G_ROWS * G_COLS - 1;
       variable video_dec_index_v : natural range 0 to 4;
    begin
       if rising_edge(video_clk_i) then
@@ -51,8 +53,7 @@ begin
 
          if video_x_i >= C_START_X and video_x_i < C_START_X + G_COLS and
             video_y_i >= C_START_Y and video_y_i < C_START_Y + G_ROWS then
-            video_index_v := to_integer((G_ROWS - 1 - (video_y_i - C_START_Y)) * G_COLS + (G_COLS - 1 - (video_x_i - C_START_X)));
-            if video_board_i(video_index_v) = '1' then
+            if video_data_i = '1' then
                video_char_o <= X"58";
             else
                video_char_o <= X"2E";

@@ -19,11 +19,10 @@ library work;
 
 entity mega65_core is
    generic (
-      G_FONT_PATH     : string                                         := "";
-      G_UART_BAUDRATE : natural                                        := 115_200;
-      G_COLS          : integer                                        := 40;
-      G_ROWS          : integer                                        := 24;
-      G_CELLS_INIT    : std_logic_vector(G_ROWS * G_COLS - 1 downto 0) := (others => '0');
+      G_FONT_PATH     : string  := "";
+      G_UART_BAUDRATE : natural := 115_200;
+      G_COLS          : integer := 60;
+      G_ROWS          : integer := 40;
       G_BOARD         : string -- Which platform are we running on.
    );
    port (
@@ -228,16 +227,21 @@ architecture synthesis of mega65_core is
 
    constant C_VIDEO_MODE : video_modes_t := C_HDMI_640x480p_60;
 
-   signal   main_life_board    : std_logic_vector(G_ROWS * G_COLS - 1 downto 0);
-   signal   main_life_step     : std_logic;
-   signal   main_life_wr_index : integer range G_ROWS * G_COLS - 1 downto 0;
-   signal   main_life_wr_value : std_logic;
-   signal   main_life_wr_en    : std_logic;
-   signal   main_life_count    : std_logic_vector(15 downto 0);
+   signal   main_life_board     : std_logic_vector(G_ROWS * G_COLS - 1 downto 0);
+   signal   main_life_step      : std_logic;
+   signal   main_life_wr_index  : integer range G_ROWS * G_COLS - 1 downto 0;
+   signal   main_life_wr_value  : std_logic;
+   signal   main_life_wr_en     : std_logic;
+   signal   main_life_init_done : std_logic;
+   signal   main_life_count     : std_logic_vector(15 downto 0);
+   signal   main_mem_ready      : std_logic;
+   signal   main_mem_valid      : std_logic;
+   signal   main_mem_addr       : std_logic_vector(19 downto 0);
+   signal   main_mem_data       : std_logic;
 
-   signal   video_count_board : std_logic_vector(G_ROWS * G_COLS + 15 downto 0);
-   signal   video_board       : std_logic_vector(G_ROWS * G_COLS - 1 downto 0);
-   signal   video_count       : std_logic_vector(15 downto 0);
+   signal   video_count    : std_logic_vector(15 downto 0);
+   signal   video_mem_addr : std_logic_vector(19 downto 0);
+   signal   video_mem_data : std_logic;
 
 begin
 
@@ -254,24 +258,48 @@ begin
    -- Instantiate main
    life_inst : entity work.life
       generic map (
-         G_ROWS       => G_ROWS,
-         G_COLS       => G_COLS,
-         G_CELLS_INIT => G_CELLS_INIT
+         G_ROWS => G_ROWS,
+         G_COLS => G_COLS
       )
       port map (
          clk_i    => main_clk_o,
          rst_i    => main_rst_o,
-         en_i     => main_life_step,
+         en_i     => main_life_step and main_mem_ready,
          board_o  => main_life_board,
          index_i  => main_life_wr_index,
          value_i  => main_life_wr_value,
          update_i => main_life_wr_en
       ); -- life_inst
 
+   main_mem_valid_proc : process (main_clk_o)
+   begin
+      if rising_edge(main_clk_o) then
+         main_mem_valid <= (main_life_step and main_mem_ready) or main_life_init_done;
+      end if;
+   end process main_mem_valid_proc;
+
+   board_mem_inst : entity work.board_mem
+      generic map (
+         G_COLS => G_COLS,
+         G_ROWS => G_ROWS
+      )
+      port map (
+         a_clk_i   => main_clk_o,
+         a_rst_i   => main_rst_o,
+         a_ready_o => main_mem_ready,
+         a_valid_i => main_mem_valid,
+         a_board_i => main_life_board,
+         a_addr_i  => main_mem_addr,
+         a_data_o  => main_mem_data,
+         b_clk_i   => video_clk_o,
+         b_addr_i  => video_mem_addr,
+         b_data_o  => video_mem_data
+      ); -- board_mem_inst
+
    controller_wrapper_inst : entity work.controller_wrapper
       generic map (
          G_MAIN_CLK_HZ   => CORE_CLK_SPEED,
-         G_UART_BAUDRATE => 115_200,
+         G_UART_BAUDRATE => G_UART_BAUDRATE,
          G_ROWS          => G_ROWS,
          G_COLS          => G_COLS
       )
@@ -282,11 +310,13 @@ begin
          main_kb_key_pressed_n_i => main_kb_key_pressed_n_i,
          uart_tx_o               => uart_tx_o,
          uart_rx_i               => uart_rx_i,
-         main_life_board_i       => main_life_board,
+         main_life_board_addr_o  => main_mem_addr,
+         main_life_board_data_i  => main_mem_data,
          main_life_step_o        => main_life_step,
          main_life_wr_index_o    => main_life_wr_index,
          main_life_wr_value_o    => main_life_wr_value,
          main_life_wr_en_o       => main_life_wr_en,
+         main_life_init_done_o   => main_life_init_done,
          main_life_count_o       => main_life_count
       ); -- controller_wrapper_inst
 
@@ -297,16 +327,14 @@ begin
 
    xpm_cdc_array_single_inst : component xpm_cdc_array_single
       generic map (
-         WIDTH => G_ROWS * G_COLS + 16
+         WIDTH => 16
       )
       port map (
          src_clk  => main_clk_o,
-         src_in   => main_life_count & main_life_board,
+         src_in   => main_life_count,
          dest_clk => video_clk_o,
-         dest_out => video_count_board
+         dest_out => video_count
       ); -- xpm_cdc_array_single_inst
-
-   (video_count, video_board) <= video_count_board;
 
    video_wrapper_inst : entity work.video_wrapper
       generic map (
@@ -318,7 +346,8 @@ begin
       port map (
          video_clk_i    => video_clk_o,
          video_rst_i    => video_rst_o,
-         video_board_i  => video_board,
+         video_addr_o   => video_mem_addr,
+         video_data_i   => video_mem_data,
          video_count_i  => video_count,
          video_ce_o     => video_ce_o,
          video_ce_ovl_o => video_ce_ovl_o,
