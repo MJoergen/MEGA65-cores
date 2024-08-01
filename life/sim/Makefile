@@ -21,16 +21,18 @@ SRCS += ../vhdl/video/video_board.vhd
 SRCS += ../vhdl/video/video_wrapper.vhd
 SRCS += ../vhdl/mega65_core.vhd
 SRCS += uart_dumper.vhd
+SRCS += tb_life.vhd
 SRCS += tb_mega65_core.vhd
+
+TB = life
+TB = mega65_core
 
 GENERICS += -gG_ROWS=8
 GENERICS += -gG_COLS=8
 GENERICS += -gG_BOARD=R6
 
-WAVE = wave.do
-
 all:
 	vlog glbl.v
 	vcom -2008 $(SRCS)
-	vsim -voptargs=+acc $(GENERICS) -do $(WAVE) tb_mega65_core glbl
+	vsim -voptargs=+acc $(GENERICS) -do wave_$(TB).do tb_$(TB) glbl
 
