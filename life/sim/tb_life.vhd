@@ -22,10 +22,14 @@ architecture simulation of tb_life is
    signal   running : std_logic := '1';
    signal   rst     : std_logic := '1';
    signal   clk     : std_logic := '1';
+   signal   ready   : std_logic;
    signal   en      : std_logic;
 
    -- The current board status
-   signal   board : std_logic_vector(C_ROWS * C_COLS - 1 downto 0);
+   signal   addr    : std_logic_vector(19 downto 0);
+   signal   rd_data : std_logic;
+   signal   wr_data : std_logic;
+   signal   wr_en   : std_logic;
 
    -- Controls the individual cells of the board
    signal   index  : integer range C_ROWS * C_COLS - 1 downto 0;
@@ -45,6 +49,8 @@ architecture simulation of tb_life is
       return res_v;
    end function reverse;
 
+   signal   board : std_logic_vector(C_ROWS * C_COLS - 1 downto 0);
+
 begin
 
    rst <= '1', '0' after 100 ns;
@@ -56,14 +62,31 @@ begin
          G_COLS => C_COLS
       )
       port map (
-         rst_i    => rst,
-         clk_i    => clk,
-         en_i     => en,
-         board_o  => board,
-         index_i  => index,
-         value_i  => value,
-         update_i => update
+         rst_i     => rst,
+         clk_i     => clk,
+         ready_o   => ready,
+         step_i    => en,
+         addr_o    => addr,
+         rd_data_i => rd_data,
+         wr_data_o => wr_data,
+         wr_en_o   => wr_en
       ); -- life_inst
+
+   board_proc : process (clk)
+   begin
+      if rising_edge(clk) then
+         rd_data <= board(to_integer(addr));
+         if wr_en = '1' then
+            board(to_integer(addr)) <= wr_data;
+         end if;
+         if update = '1' then
+            board(index) <= value;
+         end if;
+         if rst = '1' then
+            board <= (others => '0');
+         end if;
+      end if;
+   end process board_proc;
 
    test_proc : process
       --
@@ -135,9 +158,17 @@ begin
 
       en      <= '1';
       wait until clk = '1';
+      wait until ready = '1';
+
       wait until clk = '1';
+      wait until ready = '1';
+
       wait until clk = '1';
+      wait until ready = '1';
+
       wait until clk = '1';
+      wait until ready = '1';
+
       en      <= '0';
       wait until clk = '1';
 

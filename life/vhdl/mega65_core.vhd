@@ -227,17 +227,22 @@ architecture synthesis of mega65_core is
 
    constant C_VIDEO_MODE : video_modes_t := C_HDMI_640x480p_60;
 
-   signal   main_life_board     : std_logic_vector(G_ROWS * G_COLS - 1 downto 0);
-   signal   main_life_step      : std_logic;
-   signal   main_life_wr_index  : integer range G_ROWS * G_COLS - 1 downto 0;
-   signal   main_life_wr_value  : std_logic;
-   signal   main_life_wr_en     : std_logic;
-   signal   main_life_init_done : std_logic;
-   signal   main_life_count     : std_logic_vector(15 downto 0);
-   signal   main_mem_ready      : std_logic;
-   signal   main_mem_valid      : std_logic;
-   signal   main_mem_addr       : std_logic_vector(19 downto 0);
-   signal   main_mem_data       : std_logic;
+   signal   main_life_ready   : std_logic;
+   signal   main_life_addr    : std_logic_vector(19 downto 0);
+   signal   main_life_wr_data : std_logic;
+   signal   main_life_wr_en   : std_logic;
+   signal   main_life_step    : std_logic;
+   signal   main_life_count   : std_logic_vector(15 downto 0);
+
+   signal   main_controller_busy    : std_logic;
+   signal   main_controller_addr    : std_logic_vector(19 downto 0);
+   signal   main_controller_wr_data : std_logic;
+   signal   main_controller_wr_en   : std_logic;
+
+   signal   main_tdp_addr    : std_logic_vector(19 downto 0);
+   signal   main_tdp_rd_data : std_logic;
+   signal   main_tdp_wr_data : std_logic;
+   signal   main_tdp_wr_en   : std_logic;
 
    signal   video_count    : std_logic_vector(15 downto 0);
    signal   video_mem_addr : std_logic_vector(19 downto 0);
@@ -262,39 +267,15 @@ begin
          G_COLS => G_COLS
       )
       port map (
-         clk_i    => main_clk_o,
-         rst_i    => main_rst_o,
-         en_i     => main_life_step and main_mem_ready,
-         board_o  => main_life_board,
-         index_i  => main_life_wr_index,
-         value_i  => main_life_wr_value,
-         update_i => main_life_wr_en
+         clk_i     => main_clk_o,
+         rst_i     => main_rst_o,
+         ready_o   => main_life_ready,
+         step_i    => main_life_step,
+         addr_o    => main_life_addr,
+         rd_data_i => main_tdp_rd_data,
+         wr_data_o => main_life_wr_data,
+         wr_en_o   => main_life_wr_en
       ); -- life_inst
-
-   main_mem_valid_proc : process (main_clk_o)
-   begin
-      if rising_edge(main_clk_o) then
-         main_mem_valid <= (main_life_step and main_mem_ready) or main_life_init_done;
-      end if;
-   end process main_mem_valid_proc;
-
-   board_mem_inst : entity work.board_mem
-      generic map (
-         G_COLS => G_COLS,
-         G_ROWS => G_ROWS
-      )
-      port map (
-         a_clk_i   => main_clk_o,
-         a_rst_i   => main_rst_o,
-         a_ready_o => main_mem_ready,
-         a_valid_i => main_mem_valid,
-         a_board_i => main_life_board,
-         a_addr_i  => main_mem_addr,
-         a_data_o  => main_mem_data,
-         b_clk_i   => video_clk_o,
-         b_addr_i  => video_mem_addr,
-         b_data_o  => video_mem_data
-      ); -- board_mem_inst
 
    controller_wrapper_inst : entity work.controller_wrapper
       generic map (
@@ -310,15 +291,44 @@ begin
          main_kb_key_pressed_n_i => main_kb_key_pressed_n_i,
          uart_tx_o               => uart_tx_o,
          uart_rx_i               => uart_rx_i,
-         main_life_board_addr_o  => main_mem_addr,
-         main_life_board_data_i  => main_mem_data,
+         main_life_ready_i       => main_life_ready,
          main_life_step_o        => main_life_step,
-         main_life_wr_index_o    => main_life_wr_index,
-         main_life_wr_value_o    => main_life_wr_value,
-         main_life_wr_en_o       => main_life_wr_en,
-         main_life_init_done_o   => main_life_init_done,
-         main_life_count_o       => main_life_count
+         main_life_count_o       => main_life_count,
+         main_board_busy_o       => main_controller_busy,
+         main_board_addr_o       => main_controller_addr,
+         main_board_rd_data_i    => main_tdp_rd_data,
+         main_board_wr_data_o    => main_controller_wr_data,
+         main_board_wr_en_o      => main_controller_wr_en
       ); -- controller_wrapper_inst
+
+   main_tdp_addr    <= main_controller_addr when main_controller_busy = '1' else
+                       main_life_addr;
+   main_tdp_wr_data <= main_controller_wr_data when main_controller_busy = '1' else
+                       main_life_wr_data;
+   main_tdp_wr_en   <= main_controller_wr_en when main_controller_busy = '1' else
+                       main_life_wr_en;
+
+   tdp_ram_inst : entity work.tdp_ram
+      generic map (
+         ADDR_WIDTH => 20,
+         DATA_WIDTH => 1
+      )
+      port map (
+         clock_a   => main_clk_o,
+         clen_a    => '1',
+         address_a => main_tdp_addr,
+         data_a(0) => main_tdp_wr_data,
+         wren_a    => main_tdp_wr_en,
+         q_a(0)    => main_tdp_rd_data,
+
+         clock_b   => video_clk_o,
+         clen_b    => '1',
+         address_b => video_mem_addr,
+         data_b    => "0",
+         wren_b    => '0',
+         q_b(0)    => video_mem_data
+      ); -- tdp_ram_inst
+
 
 
    ---------------------------------------------------------------------------------------------

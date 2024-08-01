@@ -7,7 +7,6 @@ SRCS += ../../M2M/QNICE/vhdl/tools.vhd
 SRCS += ../vhdl/clk.vhd
 SRCS += ../vhdl/globals.vhd
 SRCS += ../vhdl/life.vhd
-SRCS += ../vhdl/board_mem.vhd
 SRCS += ../vhdl/controller/lfsr.vhd
 SRCS += ../vhdl/controller/controller.vhd
 SRCS += ../vhdl/controller/controller_wrapper.vhd
@@ -35,4 +34,5 @@ all:
 	vlog glbl.v
 	vcom -2008 $(SRCS)
 	vsim -voptargs=+acc $(GENERICS) -do wave_$(TB).do tb_$(TB) glbl
+
 

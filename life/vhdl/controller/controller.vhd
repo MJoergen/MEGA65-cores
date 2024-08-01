@@ -18,13 +18,13 @@ entity controller is
       uart_tx_valid_o         : out   std_logic;
       uart_tx_ready_i         : in    std_logic;
       uart_tx_data_o          : out   std_logic_vector(7 downto 0);
-      board_addr_o            : out   std_logic_vector(19 downto 0);
-      board_data_i            : in    std_logic;
+      ready_i                 : in    std_logic;
       step_o                  : out   std_logic;
-      wr_index_o              : out   integer range G_ROWS * G_COLS - 1 downto 0;
-      wr_value_o              : out   std_logic;
-      wr_en_o                 : out   std_logic;
-      init_done_o             : out   std_logic
+      board_busy_o            : out   std_logic;
+      board_addr_o            : out   std_logic_vector(19 downto 0);
+      board_rd_data_i         : in    std_logic;
+      board_wr_data_o         : out   std_logic;
+      board_wr_en_o           : out   std_logic
    );
 end entity controller;
 
@@ -130,6 +130,8 @@ architecture synthesis of controller is
 
    signal   step_counter : std_logic_vector(23 downto 0) := (others => '0');
 
+   signal   board_addr : std_logic_vector(19 downto 0);
+
    pure function to_stdlogic (
       arg : boolean
    ) return std_logic is
@@ -165,24 +167,22 @@ begin
    init_proc : process (clk_i)
    begin
       if rising_edge(clk_i) then
-         init_done_o <= '0';
 
          case init_state is
 
             when INIT_ST =>
-               if wr_index_o = G_ROWS * G_COLS - 1 then
-                  init_done_o <= '1';
-                  init_state  <= DONE_ST;
+               if board_addr = G_ROWS * G_COLS - 1 then
+                  init_state <= DONE_ST;
                else
-                  wr_index_o <= wr_index_o + 1;
-                  wr_value_o <= to_stdlogic(rand7 < (C_POPULATION_RATE * 128) / 100);
-                  wr_en_o    <= '1';
+                  board_addr      <= board_addr + 1;
+                  board_wr_data_o <= to_stdlogic(rand7 < (C_POPULATION_RATE * 128) / 100);
+                  board_wr_en_o   <= '1';
                end if;
 
             when DONE_ST =>
-               wr_index_o <= 0;
-               wr_value_o <= '0';
-               wr_en_o    <= '0';
+               board_addr      <= (others => '0');
+               board_wr_data_o <= '0';
+               board_wr_en_o   <= '0';
 
                if (uart_rx_valid_i = '1' and (uart_rx_data_i = X"49" or uart_rx_data_i = X"69")) or
                   (main_kb_key_pressed_n_i = '0' and main_kb_key_num_i = C_M65_I) then
@@ -192,16 +192,13 @@ begin
          end case;
 
          if rst_i = '1' then
-            wr_index_o <= 0;
-            wr_value_o <= '0';
-            wr_en_o    <= '0';
-            init_state <= INIT_ST;
+            board_addr      <= (others => '0');
+            board_wr_data_o <= '0';
+            board_wr_en_o   <= '0';
+            init_state      <= INIT_ST;
          end if;
       end if;
    end process init_proc;
-
-   uart_rx_ready_o <= '1' when state = IDLE_ST else
-                      '0';
 
    key_proc : process (clk_i)
    begin
@@ -230,14 +227,21 @@ begin
       end if;
    end process key_proc;
 
-   board_addr_o <= to_stdlogicvector(G_COLS * cur_row + cur_col, 20);
+   board_busy_o    <= '1' when init_state = INIT_ST or state = PRINTING_ST else '0';
+   board_addr_o    <= board_addr when init_state = INIT_ST else
+                      to_stdlogicvector(G_COLS * cur_row + cur_col, 20);
+
+   uart_rx_ready_o <= '1' when state = IDLE_ST and ready_i = '1' else
+                      '0';
 
    fsm_proc : process (clk_i)
    begin
       if rising_edge(clk_i) then
          step_counter <= step_counter + 1;
 
-         step_o       <= '0';
+         if ready_i = '1' then
+            step_o <= '0';
+         end if;
          if uart_tx_ready_i = '1' then
             uart_tx_valid_o <= '0';
          end if;
@@ -298,7 +302,7 @@ begin
             when PRINTING_ST =>
                if uart_tx_ready_i = '1' then
                   if cur_col < G_COLS and cur_row < G_ROWS then
-                     if board_data_i = '1' then
+                     if board_rd_data_i = '1' then
                         -- "X"
                         uart_tx_data_o <= X"58";
                      else

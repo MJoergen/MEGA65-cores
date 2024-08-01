@@ -2,15 +2,31 @@ onerror {resume}
 quietly WaveActivateNextPane {} 0
 add wave -noupdate -expand -group life /tb_life/life_inst/clk_i
 add wave -noupdate -expand -group life /tb_life/life_inst/rst_i
+add wave -noupdate -expand -group life /tb_life/life_inst/ready_o
 add wave -noupdate -expand -group life /tb_life/life_inst/en_i
-add wave -noupdate -expand -group life /tb_life/life_inst/board_o
-add wave -noupdate -expand -group life /tb_life/life_inst/index_i
-add wave -noupdate -expand -group life /tb_life/life_inst/value_i
-add wave -noupdate -expand -group life /tb_life/life_inst/update_i
+add wave -noupdate -expand -group life /tb_life/life_inst/addr_o
+add wave -noupdate -expand -group life /tb_life/life_inst/rd_data_i
+add wave -noupdate -expand -group life /tb_life/life_inst/wr_data_o
+add wave -noupdate -expand -group life /tb_life/life_inst/wr_en_o
 add wave -noupdate -expand -group life /tb_life/life_inst/board
+add wave -noupdate -expand -group life /tb_life/life_inst/state
+add wave -noupdate -expand -group life /tb_life/life_inst/addr
+add wave -noupdate -expand -group tb /tb_life/running
+add wave -noupdate -expand -group tb /tb_life/rst
+add wave -noupdate -expand -group tb /tb_life/clk
+add wave -noupdate -expand -group tb /tb_life/ready
+add wave -noupdate -expand -group tb /tb_life/en
+add wave -noupdate -expand -group tb /tb_life/addr
+add wave -noupdate -expand -group tb /tb_life/rd_data
+add wave -noupdate -expand -group tb /tb_life/wr_data
+add wave -noupdate -expand -group tb /tb_life/wr_en
+add wave -noupdate -expand -group tb /tb_life/index
+add wave -noupdate -expand -group tb /tb_life/value
+add wave -noupdate -expand -group tb /tb_life/update
+add wave -noupdate -expand -group tb /tb_life/board
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {0 fs} 0}
-quietly wave cursor active 0
+WaveRestoreCursors {{Cursor 1} {5086512800 fs} 0}
+quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 100
 configure wave -justifyvalue left
@@ -25,4 +41,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 fs} {22690 fs}
+WaveRestoreZoom {0 fs} {6300 ns}

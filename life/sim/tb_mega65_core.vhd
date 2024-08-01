@@ -82,15 +82,18 @@ begin
       wait until main_rst = '0';
       wait until main_clk = '1';
       report "Test started";
+      wait for 2 us;
 
       uart_send("P");
       wait for 50 us;
 
       uart_send("S");
+      wait for 2 us;
       uart_send("P");
       wait for 50 us;
 
       uart_send("S");
+      wait for 2 us;
       uart_send("P");
       wait for 50 us;
 

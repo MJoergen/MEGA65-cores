@@ -9,23 +9,21 @@ entity life is
    );
    port (
       -- Clock, reset, and enable
-      clk_i    : in    std_logic;
-      rst_i    : in    std_logic;
-      en_i     : in    std_logic;
+      clk_i     : in    std_logic;
+      rst_i     : in    std_logic;
+      ready_o   : out   std_logic;
+      step_i    : in    std_logic;
 
-      -- The current board status
-      board_o  : out   std_logic_vector(G_ROWS * G_COLS - 1 downto 0);
-
-      -- Controls the individual cells of the board
-      index_i  : in    integer range G_ROWS * G_COLS - 1 downto 0;
-      value_i  : in    std_logic;
-      update_i : in    std_logic
+      addr_o    : out   std_logic_vector(19 downto 0);
+      rd_data_i : in    std_logic;
+      wr_data_o : out   std_logic;
+      wr_en_o   : out   std_logic
    );
 end entity life;
 
 architecture structural of life is
 
-   constant C_CELLS : integer  := G_ROWS * G_COLS;
+   constant C_CELLS : integer                        := G_ROWS * G_COLS;
 
    subtype  ROW_TYPE   is integer range 0 to G_ROWS - 1;
    subtype  COL_TYPE   is integer range 0 to G_COLS - 1;
@@ -54,8 +52,8 @@ architecture structural of life is
    end function get_col;
 
 
-   subtype  BOARD_TYPE is std_logic_vector(C_CELLS - 1 downto 0);
-   signal   board : BOARD_TYPE := (others => '0');
+   type     board_type is array (natural range <>) of std_logic_vector(0 downto 0);
+   signal   board : board_type(C_CELLS - 1 downto 0) := (others => (others => '0'));
 
    subtype  COUNT_TYPE is integer range 0 to 8;
    -- This is the logic of the game:
@@ -89,7 +87,7 @@ architecture structural of life is
    subtype  NEIGHBOURS_TYPE is std_logic_vector(7 downto 0);
 
    function get_neighbours (
-      board_v : BOARD_TYPE;
+      board_v : board_type;
       index_v : INDEX_TYPE
    ) return NEIGHBOURS_TYPE is
       constant C_N  : integer := -G_COLS;
@@ -147,14 +145,14 @@ architecture structural of life is
 
    --
    begin
-      return (board_v(up(index_v)),
-              board_v(down(index_v)),
-              board_v(left(index_v)),
-              board_v(right(index_v)),
-              board_v(up(right(index_v))),
-              board_v(down(right(index_v))),
-              board_v(up(left(index_v))),
-              board_v(down(left(index_v))));
+      return (board_v(up(index_v))(0),
+              board_v(down(index_v))(0),
+              board_v(left(index_v))(0),
+              board_v(right(index_v))(0),
+              board_v(up(right(index_v)))(0),
+              board_v(down(right(index_v)))(0),
+              board_v(up(left(index_v)))(0),
+              board_v(down(left(index_v)))(0));
    end function get_neighbours;
 
    pure function count_ones (
@@ -167,28 +165,72 @@ architecture structural of life is
       return C_COUNT_ONES_4(to_integer(input(3 downto 0))) + C_COUNT_ONES_4(to_integer(input(7 downto 4)));
    end function count_ones;
 
+   type     state_type is (IDLE_ST, READ_FIRST_ST, READ_ST, READ_LAST_ST, UPDATE_ST, WRITE_ST);
+   signal   state  : state_type                      := IDLE_ST;
+   signal   addr   : std_logic_vector(19 downto 0);
+   signal   addr_d : std_logic_vector(19 downto 0);
+
 begin
 
-   board_o <= board;
+   ready_o <= '1' when state = IDLE_ST else
+              '0';
 
    -- This holds the actual cells
    board_proc : process (clk_i)
       variable neighbour_count_v : COUNT_TYPE;
    begin
       if rising_edge(clk_i) then
-         if en_i = '1' then
+         addr_d  <= addr_o;
+         wr_en_o <= '0';
 
-            for index in board'range loop
-               neighbour_count_v := count_ones(get_neighbours(board, index));
-               board(index)      <= new_cell(neighbour_count_v, board(index));
-            end loop;
+         case state is
 
-         end if;
-         if update_i = '1' then
-            board(index_i) <= value_i;
-         end if;
+            when IDLE_ST =>
+               if step_i = '1' then
+                  addr_o <= (others => '0');
+                  state  <= READ_FIRST_ST;
+               end if;
+
+            when READ_FIRST_ST =>
+               addr_o <= addr_o + 1;
+               state  <= READ_ST;
+
+            when READ_ST =>
+               board(to_integer(addr_d)) <= "" & rd_data_i;
+               if addr_o = G_ROWS * G_COLS - 1 then
+                  state <= READ_LAST_ST;
+               else
+                  addr_o <= addr_o + 1;
+               end if;
+
+            when READ_LAST_ST =>
+               board(to_integer(addr_d)) <= "" & rd_data_i;
+               state                     <= UPDATE_ST;
+
+            when UPDATE_ST =>
+               --
+               for index in INDEX_TYPE loop
+                  neighbour_count_v := count_ones(get_neighbours(board, index));
+                  board(index)(0)   <= new_cell(neighbour_count_v, board(index)(0));
+               end loop;
+
+               addr  <= (others => '0');
+               state <= WRITE_ST;
+
+            when WRITE_ST =>
+               addr_o    <= addr;
+               wr_data_o <= board(to_integer(addr))(0);
+               wr_en_o   <= '1';
+               if addr = G_ROWS * G_COLS - 1 then
+                  state <= IDLE_ST;
+               else
+                  addr <= addr + 1;
+               end if;
+
+         end case;
+
          if rst_i = '1' then
-            board <= (others => '0');
+            addr_o <= (others => '0');
          end if;
       end if;
    end process board_proc;

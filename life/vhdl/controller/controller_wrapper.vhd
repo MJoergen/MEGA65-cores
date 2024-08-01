@@ -24,14 +24,14 @@ entity controller_wrapper is
       main_kb_key_pressed_n_i : in    std_logic;
       uart_tx_o               : out   std_logic;
       uart_rx_i               : in    std_logic;
-      main_life_board_addr_o  : out   std_logic_vector(19 downto 0);
-      main_life_board_data_i  : in    std_logic;
+      main_life_ready_i       : in    std_logic;
       main_life_step_o        : out   std_logic;
-      main_life_wr_index_o    : out   integer range G_ROWS * G_COLS - 1 downto 0;
-      main_life_wr_value_o    : out   std_logic;
-      main_life_wr_en_o       : out   std_logic;
-      main_life_init_done_o   : out   std_logic;
-      main_life_count_o       : out   std_logic_vector(15 downto 0)
+      main_life_count_o       : out   std_logic_vector(15 downto 0);
+      main_board_busy_o       : out   std_logic;
+      main_board_addr_o       : out   std_logic_vector(19 downto 0);
+      main_board_rd_data_i    : in    std_logic;
+      main_board_wr_data_o    : out   std_logic;
+      main_board_wr_en_o      : out   std_logic
    );
 end entity controller_wrapper;
 
@@ -79,13 +79,13 @@ begin
          uart_tx_valid_o         => main_uart_tx_valid,
          uart_tx_ready_i         => main_uart_tx_ready,
          uart_tx_data_o          => main_uart_tx_data,
-         board_addr_o            => main_life_board_addr_o,
-         board_data_i            => main_life_board_data_i,
+         ready_i                 => main_life_ready_i,
          step_o                  => main_life_step_o,
-         wr_index_o              => main_life_wr_index_o,
-         wr_value_o              => main_life_wr_value_o,
-         wr_en_o                 => main_life_wr_en_o,
-         init_done_o             => main_life_init_done_o
+         board_busy_o            => main_board_busy_o,
+         board_addr_o            => main_board_addr_o,
+         board_rd_data_i         => main_board_rd_data_i,
+         board_wr_data_o         => main_board_wr_data_o,
+         board_wr_en_o           => main_board_wr_en_o
       ); -- controller_inst
 
    main_life_count_proc : process (main_clk_i)
