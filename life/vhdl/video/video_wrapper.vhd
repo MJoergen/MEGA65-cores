@@ -16,8 +16,8 @@ entity video_wrapper is
       video_clk_i    : in    std_logic;
       video_rst_i    : in    std_logic;
       video_count_i  : in    std_logic_vector(15 downto 0);
-      video_addr_o   : out   std_logic_vector(19 downto 0);
-      video_data_i   : in    std_logic;
+      video_addr_o   : out   std_logic_vector(9 downto 0);
+      video_data_i   : in    std_logic_vector(G_COLS-1 downto 0);
       video_ce_o     : out   std_logic;
       video_ce_ovl_o : out   std_logic;
       video_red_o    : out   std_logic_vector(7 downto 0);

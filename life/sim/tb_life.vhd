@@ -26,9 +26,9 @@ architecture simulation of tb_life is
    signal   en      : std_logic;
 
    -- The current board status
-   signal   addr    : std_logic_vector(19 downto 0);
-   signal   rd_data : std_logic;
-   signal   wr_data : std_logic;
+   signal   addr    : std_logic_vector(9 downto 0);
+   signal   rd_data : std_logic_vector(1023 downto 0) := (others => '0');
+   signal   wr_data : std_logic_vector(1023 downto 0) := (others => '0');
    signal   wr_en   : std_logic;
 
    -- Controls the individual cells of the board
@@ -36,20 +36,8 @@ architecture simulation of tb_life is
    signal   value  : std_logic;
    signal   update : std_logic;
 
-   pure function reverse (
-      arg : std_logic_vector
-   ) return std_logic_vector is
-      variable res_v : std_logic_vector(arg'range);
-   begin
-      --
-      for i in arg'range loop
-         res_v(i) := arg(arg'length-1 - i);
-      end loop;
-
-      return res_v;
-   end function reverse;
-
-   signal   board : std_logic_vector(C_ROWS * C_COLS - 1 downto 0);
+   type     board_type is array (natural range <>) of std_logic_vector(C_COLS - 1 downto 0);
+   signal   board : board_type(C_ROWS - 1 downto 0);
 
 begin
 
@@ -75,15 +63,15 @@ begin
    board_proc : process (clk)
    begin
       if rising_edge(clk) then
-         rd_data <= board(to_integer(addr));
+         rd_data(C_COLS - 1 downto 0) <= board(to_integer(addr));
          if wr_en = '1' then
-            board(to_integer(addr)) <= wr_data;
+            board(to_integer(addr)) <= wr_data(C_COLS - 1 downto 0);
          end if;
          if update = '1' then
-            board(index) <= value;
+            board(index / C_COLS)(index mod C_COLS) <= value;
          end if;
          if rst = '1' then
-            board <= (others => '0');
+            board <= (others => (others => '0'));
          end if;
       end if;
    end process board_proc;
@@ -105,85 +93,95 @@ begin
 
 
       procedure print_board (
-         arg : std_logic_vector
+         arg : board_type
       ) is
-         variable arg_v : std_logic_vector(G_ROWS * G_COLS - 1 downto 0);
       begin
-         arg_v := arg;
          --
-         for i in 0 to C_ROWS - 1 loop
-            report to_string(arg_v((i + 1) * C_COLS - 1 downto i * C_COLS));
+         for i in C_ROWS - 1 downto 0 loop
+            report to_string(arg(i));
          end loop;
 
       --
       end procedure print_board;
 
       procedure verify_board (
-         arg : std_logic_vector
+         arg : board_type
       ) is
       begin
-         if board /= reverse(arg) then
+         --
+
+         if board /= arg then
             report "Got:";
             print_board(board);
 
             report "Expected:";
-            print_board(reverse(arg));
+            print_board(arg);
          end if;
+
+      --
       end procedure verify_board;
 
-   --
+      --
+      variable exp_board_v : board_type(C_ROWS - 1 downto 0);
    begin
-      en      <= '0';
-      update  <= '0';
+      en          <= '0';
+      update      <= '0';
       wait until rst = '0';
       report "Test started";
 
-      write_cell(3, 1);
-      write_cell(4, 2);
-      write_cell(2, 3);
-      write_cell(3, 3);
-      write_cell(4, 3);
+      write_cell(4, 6);
+      write_cell(3, 5);
+      write_cell(5, 4);
+      write_cell(4, 4);
+      write_cell(3, 4);
 
       wait until clk = '1';
 
-      verify_board(
-                   "00000000" &
-                   "00010000" &
-                   "00001000" &
-                   "00111000" &
-                   "00000000" &
-                   "00000000" &
-                   "00000000" &
-                   "00000000");
+      exp_board_v :=
+      (
+         "00000000",
+         "00010000",
+         "00001000",
+         "00111000",
+         "00000000",
+         "00000000",
+         "00000000",
+         "00000000"
+      );
 
-      en      <= '1';
-      wait until clk = '1';
-      wait until ready = '1';
+      verify_board(exp_board_v);
 
-      wait until clk = '1';
-      wait until ready = '1';
-
+      en          <= '1';
       wait until clk = '1';
       wait until ready = '1';
 
       wait until clk = '1';
       wait until ready = '1';
 
-      en      <= '0';
       wait until clk = '1';
-
-      verify_board(
-                   "00000000" &
-                   "00000000" &
-                   "00001000" &
-                   "00000100" &
-                   "00011100" &
-                   "00000000" &
-                   "00000000" &
-                   "00000000");
+      wait until ready = '1';
 
       wait until clk = '1';
-      running <= '0';
+      wait until ready = '1';
+
+      en          <= '0';
+      wait until clk = '1';
+
+      exp_board_v :=
+      (
+         "00000000",
+         "00000000",
+         "00001000",
+         "00000100",
+         "00011100",
+         "00000000",
+         "00000000",
+         "00000000"
+      );
+      verify_board(exp_board_v);
+
+      wait until clk = '1';
+      running     <= '0';
       report "Test finished";
    end process test_proc;
 

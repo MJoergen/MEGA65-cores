@@ -228,25 +228,25 @@ architecture synthesis of mega65_core is
    constant C_VIDEO_MODE : video_modes_t := C_HDMI_640x480p_60;
 
    signal   main_life_ready   : std_logic;
-   signal   main_life_addr    : std_logic_vector(19 downto 0);
-   signal   main_life_wr_data : std_logic;
+   signal   main_life_addr    : std_logic_vector(9 downto 0);
+   signal   main_life_wr_data : std_logic_vector(G_COLS-1 downto 0);
    signal   main_life_wr_en   : std_logic;
    signal   main_life_step    : std_logic;
    signal   main_life_count   : std_logic_vector(15 downto 0);
 
    signal   main_controller_busy    : std_logic;
-   signal   main_controller_addr    : std_logic_vector(19 downto 0);
-   signal   main_controller_wr_data : std_logic;
+   signal   main_controller_addr    : std_logic_vector(9 downto 0);
+   signal   main_controller_wr_data : std_logic_vector(G_COLS-1 downto 0);
    signal   main_controller_wr_en   : std_logic;
 
-   signal   main_tdp_addr    : std_logic_vector(19 downto 0);
-   signal   main_tdp_rd_data : std_logic;
-   signal   main_tdp_wr_data : std_logic;
+   signal   main_tdp_addr    : std_logic_vector(9 downto 0);
+   signal   main_tdp_rd_data : std_logic_vector(G_COLS-1 downto 0);
+   signal   main_tdp_wr_data : std_logic_vector(G_COLS-1 downto 0);
    signal   main_tdp_wr_en   : std_logic;
 
    signal   video_count    : std_logic_vector(15 downto 0);
-   signal   video_mem_addr : std_logic_vector(19 downto 0);
-   signal   video_mem_data : std_logic;
+   signal   video_mem_addr : std_logic_vector(9 downto 0);
+   signal   video_mem_data : std_logic_vector(G_COLS-1 downto 0);
 
 begin
 
@@ -310,23 +310,23 @@ begin
 
    tdp_ram_inst : entity work.tdp_ram
       generic map (
-         ADDR_WIDTH => 20,
-         DATA_WIDTH => 1
+         ADDR_WIDTH => 10,
+         DATA_WIDTH => G_COLS
       )
       port map (
          clock_a   => main_clk_o,
          clen_a    => '1',
          address_a => main_tdp_addr,
-         data_a(0) => main_tdp_wr_data,
+         data_a    => main_tdp_wr_data,
          wren_a    => main_tdp_wr_en,
-         q_a(0)    => main_tdp_rd_data,
+         q_a       => main_tdp_rd_data,
 
          clock_b   => video_clk_o,
          clen_b    => '1',
          address_b => video_mem_addr,
-         data_b    => "0",
+         data_b    => (others => '0'),
          wren_b    => '0',
-         q_b(0)    => video_mem_data
+         q_b       => video_mem_data
       ); -- tdp_ram_inst
 
 

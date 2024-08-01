@@ -21,9 +21,9 @@ entity controller is
       ready_i                 : in    std_logic;
       step_o                  : out   std_logic;
       board_busy_o            : out   std_logic;
-      board_addr_o            : out   std_logic_vector(19 downto 0);
-      board_rd_data_i         : in    std_logic;
-      board_wr_data_o         : out   std_logic;
+      board_addr_o            : out   std_logic_vector(9 downto 0);
+      board_rd_data_i         : in    std_logic_vector(G_COLS - 1 downto 0);
+      board_wr_data_o         : out   std_logic_vector(G_COLS - 1 downto 0);
       board_wr_en_o           : out   std_logic
    );
 end entity controller;
@@ -174,14 +174,16 @@ begin
                if board_addr = G_ROWS * G_COLS - 1 then
                   init_state <= DONE_ST;
                else
-                  board_addr      <= board_addr + 1;
-                  board_wr_data_o <= to_stdlogic(rand7 < (C_POPULATION_RATE * 128) / 100);
-                  board_wr_en_o   <= '1';
+                  board_addr                                             <= board_addr + 1;
+                  board_wr_data_o(to_integer(board_addr + 1) mod G_COLS) <= to_stdlogic(rand7 < (C_POPULATION_RATE * 128) / 100);
+                  if to_integer(board_addr + 1) mod G_COLS = G_COLS - 1 then
+                     board_wr_en_o <= '1';
+                  end if;
                end if;
 
             when DONE_ST =>
                board_addr      <= (others => '0');
-               board_wr_data_o <= '0';
+               board_wr_data_o <= (others => '0');
                board_wr_en_o   <= '0';
 
                if (uart_rx_valid_i = '1' and (uart_rx_data_i = X"49" or uart_rx_data_i = X"69")) or
@@ -193,7 +195,7 @@ begin
 
          if rst_i = '1' then
             board_addr      <= (others => '0');
-            board_wr_data_o <= '0';
+            board_wr_data_o <= (others => '0');
             board_wr_en_o   <= '0';
             init_state      <= INIT_ST;
          end if;
@@ -227,9 +229,10 @@ begin
       end if;
    end process key_proc;
 
-   board_busy_o    <= '1' when init_state = INIT_ST or state = PRINTING_ST else '0';
-   board_addr_o    <= board_addr when init_state = INIT_ST else
-                      to_stdlogicvector(G_COLS * cur_row + cur_col, 20);
+   board_busy_o    <= '1' when init_state = INIT_ST or state = PRINTING_ST else
+                      '0';
+   board_addr_o    <= to_stdlogicvector(to_integer(board_addr) / G_COLS, 10) when init_state = INIT_ST else
+                      to_stdlogicvector(cur_row, 10);
 
    uart_rx_ready_o <= '1' when state = IDLE_ST and ready_i = '1' else
                       '0';
@@ -302,7 +305,7 @@ begin
             when PRINTING_ST =>
                if uart_tx_ready_i = '1' then
                   if cur_col < G_COLS and cur_row < G_ROWS then
-                     if board_rd_data_i = '1' then
+                     if board_rd_data_i(cur_col) = '1' then
                         -- "X"
                         uart_tx_data_o <= X"58";
                      else

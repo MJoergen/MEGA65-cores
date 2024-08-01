@@ -28,9 +28,9 @@ entity controller_wrapper is
       main_life_step_o        : out   std_logic;
       main_life_count_o       : out   std_logic_vector(15 downto 0);
       main_board_busy_o       : out   std_logic;
-      main_board_addr_o       : out   std_logic_vector(19 downto 0);
-      main_board_rd_data_i    : in    std_logic;
-      main_board_wr_data_o    : out   std_logic;
+      main_board_addr_o       : out   std_logic_vector(9 downto 0);
+      main_board_rd_data_i    : in    std_logic_vector(G_COLS-1 downto 0);
+      main_board_wr_data_o    : out   std_logic_vector(G_COLS-1 downto 0);
       main_board_wr_en_o      : out   std_logic
    );
 end entity controller_wrapper;
