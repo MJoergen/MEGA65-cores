@@ -10,10 +10,13 @@ library ieee;
    use ieee.std_logic_1164.all;
    use ieee.numeric_std_unsigned.all;
 
+library work;
+   use work.globals.all;
+
 entity tb_mega65_core is
    generic (
-      G_ROWS  : integer                                        := 8;
-      G_COLS  : integer                                        := 8;
+      G_ROWS  : integer := 8;
+      G_COLS  : integer := 8;
       G_BOARD : string -- Which platform are we running on.
    );
 end entity tb_mega65_core;
@@ -258,7 +261,7 @@ begin
 
    uart_inst : entity work.uart
       generic map (
-         G_DIVISOR => 100_000_000 / C_UART_BAUDRATE
+         G_DIVISOR => CORE_CLK_SPEED / C_UART_BAUDRATE
       )
       port map (
          clk_i      => main_clk,
