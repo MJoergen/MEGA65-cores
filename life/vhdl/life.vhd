@@ -2,6 +2,30 @@ library ieee;
    use ieee.std_logic_1164.all;
    use ieee.numeric_std_unsigned.all;
 
+-- This is the logic of the game:
+-- 1. Any live cell with fewer than two live neighbours dies, as if caused by under-population.
+-- 2. Any live cell with two or three live neighbours lives on to the next generation.
+-- 3. Any live cell with more than three live neighbours dies, as if by overcrowding.
+-- 4. Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+
+
+-- This implementation stores three consecutive rows.
+-- The read/write pattern for the BRAM
+-- is as follows:
+-- * Read row N-1
+-- * Read row 0
+-- * Read row 1
+-- * Write row 0
+-- * Read row 2
+-- * Write row 1
+-- * Read row 3
+-- * Write row 2
+-- * etc...
+-- * Read row N-1
+-- * Write row N-2
+-- * Read row 0 (not needed)
+-- * Write row N-1
+
 entity life is
    generic (
       G_ROWS : integer;
@@ -25,18 +49,13 @@ architecture structural of life is
 
    subtype ROW_TYPE   is integer range 0 to G_ROWS - 1;
    subtype COL_TYPE   is integer range 0 to G_COLS - 1;
-
-   -- This is the logic of the game:
-   -- 1. Any live cell with fewer than two live neighbours dies, as if caused by under-population.
-   -- 2. Any live cell with two or three live neighbours lives on to the next generation.
-   -- 3. Any live cell with more than three live neighbours dies, as if by overcrowding.
-   -- 4. Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
-
    subtype COUNT_TYPE is integer range 0 to 8;
 
-   pure function new_cell (
+   -- Calculate the new state of the cell
+
+   pure function new_state (
       neighbours : COUNT_TYPE;
-      cur_cell   : std_logic
+      cur_state   : std_logic
    ) return std_logic is
       -- The fate of dead cells.
       constant C_BIRTH   : std_logic_vector(count_type) := "000100000";
@@ -44,7 +63,7 @@ architecture structural of life is
       constant C_SURVIVE : std_logic_vector(count_type) := "001100000";
    begin
       --
-      case cur_cell is
+      case cur_state is
 
          when '1' =>
             return C_SURVIVE(neighbours);
@@ -55,7 +74,7 @@ architecture structural of life is
       end case;
 
       return '0';
-   end function new_cell;
+   end function new_state;
 
 
    -- Return the eight neighbours
@@ -98,32 +117,21 @@ architecture structural of life is
       IDLE_ST, READ_ROW_LAST_ST, READ_ROW_0_ST, READ_ROW_1_ST,
       READ_ROW_NEXT_ST, WRITE_ROW_ST
    );
-   signal  state    : state_type := IDLE_ST;
-   signal  rd_addr  : std_logic_vector(9 downto 0);
-   signal  wr_addr  : std_logic_vector(9 downto 0);
-   signal  row_last : std_logic_vector(G_COLS - 1 downto 0);
-   signal  row_cur  : std_logic_vector(G_COLS - 1 downto 0);
-   signal  row_next : std_logic_vector(G_COLS - 1 downto 0);
-
--- * Read row N-1
--- * Read row 0
--- * Read row 1
--- * Write row 0
--- * Read row 2
--- * Write row 1
--- * Read row 3
--- * Write row 2
--- * etc...
--- * Read row N-1
--- * Write row N-2
--- * Write row N-1
+   signal  state     : state_type := IDLE_ST;
+   signal  rd_addr   : std_logic_vector(9 downto 0);
+   signal  wr_addr   : std_logic_vector(9 downto 0);
+   signal  row_first : std_logic_vector(G_COLS - 1 downto 0);
+   signal  row_cur   : std_logic_vector(G_COLS - 1 downto 0);
+   signal  row_next  : std_logic_vector(G_COLS - 1 downto 0);
 
 begin
 
    ready_o <= '1' when state = IDLE_ST else
               '0';
 
-   -- This is a combinatorial process
+   -- This is a combinatorial process.
+   -- This has to be combinatorial, because the write takes place in the same clock cycle
+   -- that the read data from the previous clock cycle is available.
    ram_proc : process (all)
       variable neighbour_count_v : COUNT_TYPE;
       variable rd_data_v         : std_logic_vector(G_COLS - 1 downto 0);
@@ -136,12 +144,12 @@ begin
       if state = WRITE_ROW_ST then
          rd_data_v := rd_data_i;
          if wr_addr = G_ROWS - 1 then
-            rd_data_v := row_last;
+            rd_data_v := row_first;
          end if;
 
          for col in 0 to G_COLS - 1 loop
             neighbour_count_v := count_ones(get_neighbours(row_cur, row_next, rd_data_v, col));
-            wr_data_o(col)    <= new_cell(neighbour_count_v, row_next(col));
+            wr_data_o(col)    <= new_state(neighbour_count_v, row_next(col));
          end loop;
 
          addr_o  <= wr_addr;
@@ -149,10 +157,8 @@ begin
       end if;
    end process ram_proc;
 
-   -- This holds the actual cells
-   board_proc : process (clk_i)
-      variable prev_row_v : ROW_TYPE; -- previous row index
-      variable next_row_v : ROW_TYPE; -- next row index
+   -- This is the main state machine
+   fsm_proc : process (clk_i)
    begin
       if rising_edge(clk_i) then
 
@@ -174,12 +180,14 @@ begin
                state    <= READ_ROW_1_ST;
 
             when READ_ROW_1_ST =>
-               row_cur  <= row_next;
-               row_next <= rd_data_i;
-               row_last <= rd_data_i;
-               rd_addr  <= to_stdlogicvector(2, 10);
-               wr_addr  <= to_stdlogicvector(0, 10);
-               state    <= WRITE_ROW_ST;
+               -- Store row 0 for later use
+               row_first <= rd_data_i;
+
+               row_cur   <= row_next;
+               row_next  <= rd_data_i;
+               rd_addr   <= to_stdlogicvector((to_integer(rd_addr) + 1) mod G_ROWS, 10);
+               wr_addr   <= to_stdlogicvector((to_integer(rd_addr) - 1) mod G_ROWS, 10);
+               state     <= WRITE_ROW_ST;
 
             when READ_ROW_NEXT_ST =>
                rd_addr <= to_stdlogicvector((to_integer(rd_addr) + 1) mod G_ROWS, 10);
@@ -200,9 +208,10 @@ begin
          if rst_i = '1' then
             rd_addr <= (others => '0');
             wr_addr <= (others => '0');
+            state   <= IDLE_ST;
          end if;
       end if;
-   end process board_proc;
+   end process fsm_proc;
 
 end architecture structural;
 
