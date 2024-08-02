@@ -21,10 +21,12 @@ add wave -noupdate -expand -group life /tb_life/life_inst/addr_o
 add wave -noupdate -expand -group life /tb_life/life_inst/rd_data_i
 add wave -noupdate -expand -group life /tb_life/life_inst/wr_data_o
 add wave -noupdate -expand -group life /tb_life/life_inst/wr_en_o
-add wave -noupdate -expand -group life /tb_life/life_inst/board
 add wave -noupdate -expand -group life /tb_life/life_inst/state
-add wave -noupdate -expand -group life /tb_life/life_inst/addr
-add wave -noupdate -expand -group life /tb_life/life_inst/addr_d
+add wave -noupdate -expand -group life /tb_life/life_inst/rd_addr
+add wave -noupdate -expand -group life /tb_life/life_inst/wr_addr
+add wave -noupdate -expand -group life /tb_life/life_inst/row_last
+add wave -noupdate -expand -group life /tb_life/life_inst/row_cur
+add wave -noupdate -expand -group life /tb_life/life_inst/row_next
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {5086512800 fs} 0}
 quietly wave cursor active 1

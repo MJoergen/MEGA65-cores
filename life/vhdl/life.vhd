@@ -26,9 +26,6 @@ architecture structural of life is
    subtype ROW_TYPE   is integer range 0 to G_ROWS - 1;
    subtype COL_TYPE   is integer range 0 to G_COLS - 1;
 
-   type    board_type is array (natural range <>) of std_logic_vector(G_COLS - 1 downto 0);
-   signal  board : board_type(G_ROWS - 1 downto 0) := (others => (others => '0'));
-
    -- This is the logic of the game:
    -- 1. Any live cell with fewer than two live neighbours dies, as if caused by under-population.
    -- 2. Any live cell with two or three live neighbours lives on to the next generation.
@@ -62,6 +59,7 @@ architecture structural of life is
 
 
    -- Return the eight neighbours
+
    function get_neighbours (
       prev_v : std_logic_vector; -- previous row
       cur_v  : std_logic_vector; -- current row
@@ -96,85 +94,112 @@ architecture structural of life is
       return C_COUNT_ONES_4(to_integer(input(3 downto 0))) + C_COUNT_ONES_4(to_integer(input(7 downto 4)));
    end function count_ones;
 
-   type    state_type is (IDLE_ST, READ_FIRST_ST, READ_ST, READ_LAST_ST, UPDATE_ST, WRITE_ST);
-   signal  state  : state_type                     := IDLE_ST;
-   signal  addr   : std_logic_vector(9 downto 0);
-   signal  addr_d : std_logic_vector(9 downto 0);
+   type    state_type is (
+      IDLE_ST, READ_ROW_LAST_ST, READ_ROW_0_ST, READ_ROW_1_ST,
+      READ_ROW_NEXT_ST, WRITE_ROW_ST
+   );
+   signal  state    : state_type := IDLE_ST;
+   signal  rd_addr  : std_logic_vector(9 downto 0);
+   signal  wr_addr  : std_logic_vector(9 downto 0);
+   signal  row_last : std_logic_vector(G_COLS - 1 downto 0);
+   signal  row_cur  : std_logic_vector(G_COLS - 1 downto 0);
+   signal  row_next : std_logic_vector(G_COLS - 1 downto 0);
+
+-- * Read row N-1
+-- * Read row 0
+-- * Read row 1
+-- * Write row 0
+-- * Read row 2
+-- * Write row 1
+-- * Read row 3
+-- * Write row 2
+-- * etc...
+-- * Read row N-1
+-- * Write row N-2
+-- * Write row N-1
 
 begin
 
    ready_o <= '1' when state = IDLE_ST else
               '0';
 
+   -- This is a combinatorial process
+   ram_proc : process (all)
+      variable neighbour_count_v : COUNT_TYPE;
+      variable rd_data_v         : std_logic_vector(G_COLS - 1 downto 0);
+   begin
+      -- Default values (read from RAM)
+      wr_data_o <= (others => '0');
+      addr_o    <= rd_addr;
+      wr_en_o   <= '0';
+
+      if state = WRITE_ROW_ST then
+         rd_data_v := rd_data_i;
+         if wr_addr = G_ROWS - 1 then
+            rd_data_v := row_last;
+         end if;
+
+         for col in 0 to G_COLS - 1 loop
+            neighbour_count_v := count_ones(get_neighbours(row_cur, row_next, rd_data_v, col));
+            wr_data_o(col)    <= new_cell(neighbour_count_v, row_next(col));
+         end loop;
+
+         addr_o  <= wr_addr;
+         wr_en_o <= '1';
+      end if;
+   end process ram_proc;
+
    -- This holds the actual cells
    board_proc : process (clk_i)
-      variable neighbour_count_v : COUNT_TYPE;
-      variable prev_row_v        : ROW_TYPE; -- previous row index
-      variable next_row_v        : ROW_TYPE; -- next row index
+      variable prev_row_v : ROW_TYPE; -- previous row index
+      variable next_row_v : ROW_TYPE; -- next row index
    begin
       if rising_edge(clk_i) then
-         addr_d  <= addr_o;
-         wr_en_o <= '0';
 
          case state is
 
             when IDLE_ST =>
                if step_i = '1' then
-                  addr_o <= (others => '0');
-                  state  <= READ_FIRST_ST;
+                  rd_addr <= to_stdlogicvector(G_ROWS - 1, 10);
+                  state   <= READ_ROW_LAST_ST;
                end if;
 
-            when READ_FIRST_ST =>
-               addr_o <= addr_o + 1;
-               state  <= READ_ST;
+            when READ_ROW_LAST_ST =>
+               rd_addr <= to_stdlogicvector(0, 10);
+               state   <= READ_ROW_0_ST;
 
-            when READ_ST =>
-               board(to_integer(addr_d)) <= rd_data_i(G_COLS - 1 downto 0);
+            when READ_ROW_0_ST =>
+               row_next <= rd_data_i;
+               rd_addr  <= to_stdlogicvector(1, 10);
+               state    <= READ_ROW_1_ST;
 
-               if addr_o = G_ROWS - 1 then
-                  state <= READ_LAST_ST;
-               else
-                  addr_o <= addr_o + 1;
-               end if;
+            when READ_ROW_1_ST =>
+               row_cur  <= row_next;
+               row_next <= rd_data_i;
+               row_last <= rd_data_i;
+               rd_addr  <= to_stdlogicvector(2, 10);
+               wr_addr  <= to_stdlogicvector(0, 10);
+               state    <= WRITE_ROW_ST;
 
-            when READ_LAST_ST =>
-               board(to_integer(addr_d)) <= rd_data_i(G_COLS - 1 downto 0);
-               state                     <= UPDATE_ST;
+            when READ_ROW_NEXT_ST =>
+               rd_addr <= to_stdlogicvector((to_integer(rd_addr) + 1) mod G_ROWS, 10);
+               wr_addr <= to_stdlogicvector((to_integer(rd_addr) - 1) mod G_ROWS, 10);
+               state   <= WRITE_ROW_ST;
 
-            when UPDATE_ST =>
-               --
-               for row in 0 to G_ROWS - 1 loop
-                  prev_row_v := (row - 1) mod G_ROWS;
-                  next_row_v := (row + 1) mod G_ROWS;
-
-                  for col in 0 to G_COLS - 1 loop
-                     neighbour_count_v := count_ones(get_neighbours(board(prev_row_v), board(row), board(next_row_v), col));
-                     board(row)(col)   <= new_cell(neighbour_count_v, board(row)(col));
-                  end loop;
-
-               --
-               end loop;
-
-               addr  <= (others => '0');
-               state <= WRITE_ST;
-
-            when WRITE_ST =>
-               addr_o                         <= addr;
-
-               wr_data_o(G_COLS - 1 downto 0) <= board(to_integer(addr));
-
-               wr_en_o                        <= '1';
-               if addr = G_ROWS - 1 then
+            when WRITE_ROW_ST =>
+               row_cur  <= row_next;
+               row_next <= rd_data_i;
+               if wr_addr = G_ROWS - 1 then
                   state <= IDLE_ST;
                else
-                  addr <= addr + 1;
+                  state <= READ_ROW_NEXT_ST;
                end if;
 
          end case;
 
          if rst_i = '1' then
-            wr_data_o <= (others => '0');
-            addr_o    <= (others => '0');
+            rd_addr <= (others => '0');
+            wr_addr <= (others => '0');
          end if;
       end if;
    end process board_proc;
