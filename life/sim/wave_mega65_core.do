@@ -8,10 +8,7 @@ add wave -noupdate -group life /tb_mega65_core/mega65_core_inst/life_inst/addr_o
 add wave -noupdate -group life /tb_mega65_core/mega65_core_inst/life_inst/rd_data_i
 add wave -noupdate -group life /tb_mega65_core/mega65_core_inst/life_inst/wr_data_o
 add wave -noupdate -group life /tb_mega65_core/mega65_core_inst/life_inst/wr_en_o
-add wave -noupdate -group life /tb_mega65_core/mega65_core_inst/life_inst/board
 add wave -noupdate -group life /tb_mega65_core/mega65_core_inst/life_inst/state
-add wave -noupdate -group life /tb_mega65_core/mega65_core_inst/life_inst/addr
-add wave -noupdate -group life /tb_mega65_core/mega65_core_inst/life_inst/addr_d
 add wave -noupdate -group controller_wrapper /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/main_clk_i
 add wave -noupdate -group controller_wrapper /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/main_rst_i
 add wave -noupdate -group controller_wrapper /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/main_kb_key_num_i
@@ -49,7 +46,6 @@ add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller
 add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/board_rd_data_i
 add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/board_wr_data_o
 add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/board_wr_en_o
-add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/init_state
 add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/state
 add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/cur_col
 add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/cur_row
@@ -59,7 +55,6 @@ add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller
 add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/key_pressed
 add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/key_released
 add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/step_counter
-add wave -noupdate -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/board_addr
 add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clock_a
 add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clen_a
 add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/address_a

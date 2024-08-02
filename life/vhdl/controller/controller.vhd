@@ -112,11 +112,8 @@ architecture synthesis of controller is
    constant C_M65_RESTORE     : integer                  := 75;
    constant C_M65_NONE        : integer                  := 79;
 
-   type     init_state_type is (INIT_ST, DONE_ST);
-   signal   init_state : init_state_type                 := INIT_ST;
-
-   type     state_type is (IDLE_ST, CONTINUOUS_ST, PRINTING_ST);
-   signal   state : state_type                           := IDLE_ST;
+   type     state_type is (INIT_ST, IDLE_ST, CONTINUOUS_ST, PRINTING_ST);
+   signal   state : state_type                           := INIT_ST;
 
    signal   cur_col : natural range 0 to G_COLS + 1;
    signal   cur_row : natural range 0 to G_ROWS;
@@ -129,8 +126,6 @@ architecture synthesis of controller is
    signal   key_released : std_logic;
 
    signal   step_counter : std_logic_vector(23 downto 0) := (others => '0');
-
-   signal   board_addr : std_logic_vector(19 downto 0);
 
    pure function to_stdlogic (
       arg : boolean
@@ -164,44 +159,6 @@ begin
                       lfsr_output(0) & lfsr_output(25) & lfsr_output(7);
 
 
-   init_proc : process (clk_i)
-   begin
-      if rising_edge(clk_i) then
-
-         case init_state is
-
-            when INIT_ST =>
-               if board_addr = G_ROWS * G_COLS - 1 then
-                  init_state <= DONE_ST;
-               else
-                  board_addr                                             <= board_addr + 1;
-                  board_wr_data_o(to_integer(board_addr + 1) mod G_COLS) <= to_stdlogic(rand7 < (C_POPULATION_RATE * 128) / 100);
-                  if to_integer(board_addr + 1) mod G_COLS = G_COLS - 1 then
-                     board_wr_en_o <= '1';
-                  end if;
-               end if;
-
-            when DONE_ST =>
-               board_addr      <= (others => '0');
-               board_wr_data_o <= (others => '0');
-               board_wr_en_o   <= '0';
-
-               if (uart_rx_valid_i = '1' and (uart_rx_data_i = X"49" or uart_rx_data_i = X"69")) or
-                  (main_kb_key_pressed_n_i = '0' and main_kb_key_num_i = C_M65_I) then
-                  init_state <= INIT_ST;
-               end if;
-
-         end case;
-
-         if rst_i = '1' then
-            board_addr      <= (others => '0');
-            board_wr_data_o <= (others => '0');
-            board_wr_en_o   <= '0';
-            init_state      <= INIT_ST;
-         end if;
-      end if;
-   end process init_proc;
-
    key_proc : process (clk_i)
    begin
       if rising_edge(clk_i) then
@@ -229,10 +186,9 @@ begin
       end if;
    end process key_proc;
 
-   board_busy_o    <= '1' when init_state = INIT_ST or state = PRINTING_ST else
+   board_busy_o    <= '1' when state = PRINTING_ST or board_wr_en_o = '1' else
                       '0';
-   board_addr_o    <= to_stdlogicvector(to_integer(board_addr) / G_COLS, 10) when init_state = INIT_ST else
-                      to_stdlogicvector(cur_row, 10);
+   board_addr_o    <= to_stdlogicvector(cur_row, 10);
 
    uart_rx_ready_o <= '1' when state = IDLE_ST and ready_i = '1' else
                       '0';
@@ -240,7 +196,8 @@ begin
    fsm_proc : process (clk_i)
    begin
       if rising_edge(clk_i) then
-         step_counter <= step_counter + 1;
+         board_wr_en_o <= '0';
+         step_counter  <= step_counter + 1;
 
          if ready_i = '1' then
             step_o <= '0';
@@ -250,6 +207,23 @@ begin
          end if;
 
          case state is
+
+            when INIT_ST =>
+               if board_wr_en_o = '1' then
+                  if cur_row < G_ROWS - 1 then
+                     cur_row <= cur_row + 1;
+                  else
+                     state <= IDLE_ST;
+                  end if;
+               end if;
+
+               board_wr_data_o(cur_col) <= to_stdlogic(rand7 < (C_POPULATION_RATE * 128) / 100);
+               if cur_col < G_COLS - 1 then
+                  cur_col <= cur_col + 1;
+               else
+                  cur_col       <= 0;
+                  board_wr_en_o <= '1';
+               end if;
 
             when IDLE_ST =>
                if uart_rx_valid_i = '1' then
@@ -265,6 +239,12 @@ begin
                         cur_col <= 0;
                         cur_row <= 0;
                         state   <= PRINTING_ST;
+
+                     when X"49" | X"69" =>
+                        -- "I"
+                        cur_col <= 0;
+                        cur_row <= 0;
+                        state   <= INIT_ST;
 
                      when others =>
                         null;
@@ -287,6 +267,11 @@ begin
 
                      when C_M65_C =>
                         state <= CONTINUOUS_ST;
+
+                     when C_M65_I =>
+                        cur_col <= 0;
+                        cur_row <= 0;
+                        state   <= INIT_ST;
 
                      when others =>
                         null;
@@ -336,7 +321,9 @@ begin
          end case;
 
          if rst_i = '1' then
-            state <= IDLE_ST;
+            cur_row <= 0;
+            cur_col <= 0;
+            state   <= INIT_ST;
          end if;
       end if;
    end process fsm_proc;
