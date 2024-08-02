@@ -27,8 +27,8 @@ architecture simulation of tb_life is
 
    -- The current board status
    signal   addr    : std_logic_vector(9 downto 0);
-   signal   rd_data : std_logic_vector(1023 downto 0) := (others => '0');
-   signal   wr_data : std_logic_vector(1023 downto 0) := (others => '0');
+   signal   rd_data : std_logic_vector(G_COLS-1 downto 0) := (others => '0');
+   signal   wr_data : std_logic_vector(G_COLS-1 downto 0) := (others => '0');
    signal   wr_en   : std_logic;
 
    -- Controls the individual cells of the board

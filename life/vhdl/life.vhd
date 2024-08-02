@@ -15,59 +15,36 @@ entity life is
       step_i    : in    std_logic;
 
       addr_o    : out   std_logic_vector(9 downto 0);
-      rd_data_i : in    std_logic_vector(G_COLS-1 downto 0);
-      wr_data_o : out   std_logic_vector(G_COLS-1 downto 0);
+      rd_data_i : in    std_logic_vector(G_COLS - 1 downto 0);
+      wr_data_o : out   std_logic_vector(G_COLS - 1 downto 0);
       wr_en_o   : out   std_logic
    );
 end entity life;
 
 architecture structural of life is
 
-   constant C_CELLS : integer                        := G_ROWS * G_COLS;
+   subtype ROW_TYPE   is integer range 0 to G_ROWS - 1;
+   subtype COL_TYPE   is integer range 0 to G_COLS - 1;
 
-   subtype  ROW_TYPE   is integer range 0 to G_ROWS - 1;
-   subtype  COL_TYPE   is integer range 0 to G_COLS - 1;
-   subtype  INDEX_TYPE is integer range 0 to C_CELLS - 1;
+   type    board_type is array (natural range <>) of std_logic_vector(G_COLS - 1 downto 0);
+   signal  board : board_type(G_ROWS - 1 downto 0) := (others => (others => '0'));
 
-   pure function to_index (
-      row : ROW_TYPE;
-      col : COL_TYPE
-   ) return INDEX_TYPE is
-   begin
-      return row * G_COLS + col;
-   end function to_index;
-
-   pure function get_row (
-      index : INDEX_TYPE
-   ) return ROW_TYPE is
-   begin
-      return index / G_COLS;
-   end function get_row;
-
-   pure function get_col (
-      index : INDEX_TYPE
-   ) return COL_TYPE is
-   begin
-      return index rem G_COLS;
-   end function get_col;
-
-
-   type     board_type is array (natural range <>) of std_logic_vector(G_COLS-1 downto 0);
-   signal   board : board_type(G_ROWS - 1 downto 0) := (others => (others => '0'));
-
-   subtype  COUNT_TYPE is integer range 0 to 8;
    -- This is the logic of the game:
    -- 1. Any live cell with fewer than two live neighbours dies, as if caused by under-population.
    -- 2. Any live cell with two or three live neighbours lives on to the next generation.
    -- 3. Any live cell with more than three live neighbours dies, as if by overcrowding.
    -- 4. Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
 
+   subtype COUNT_TYPE is integer range 0 to 8;
+
    pure function new_cell (
       neighbours : COUNT_TYPE;
-      cur_cell : std_logic
+      cur_cell   : std_logic
    ) return std_logic is
-      constant C_BIRTH   : std_logic_vector(count_type) := "000100000"; -- The fate of dead cells.
-      constant C_SURVIVE : std_logic_vector(count_type) := "001100000"; -- The fate of live cells.
+      -- The fate of dead cells.
+      constant C_BIRTH   : std_logic_vector(count_type) := "000100000";
+      -- The fate of live cells.
+      constant C_SURVIVE : std_logic_vector(count_type) := "001100000";
    begin
       --
       case cur_cell is
@@ -84,76 +61,28 @@ architecture structural of life is
    end function new_cell;
 
 
-   subtype  NEIGHBOURS_TYPE is std_logic_vector(7 downto 0);
-
+   -- Return the eight neighbours
    function get_neighbours (
-      board_v : board_type;
-      index_v : INDEX_TYPE
-   ) return NEIGHBOURS_TYPE is
-      constant C_N  : integer := -G_COLS;
-      constant C_S  : integer := G_COLS;
-      constant C_W  : integer := -1;
-      constant C_E  : integer := 1;
-      constant C_NW : integer := C_N + C_W;
-      constant C_NE : integer := C_N + C_E;
-      constant C_SW : integer := C_S + C_W;
-      constant C_SE : integer := C_S + C_E;
-
-      pure function up (
-         index : index_type
-      ) return index_type is
-      begin
-         if get_row(index) = 0 then
-            return index + C_N + C_CELLS;
-         else
-            return index + C_N;
-         end if;
-      end function up;
-
-      pure function down (
-         index : index_type
-      ) return index_type is
-      begin
-         if get_row(index) = G_ROWS - 1 then
-            return index + C_S - C_CELLS;
-         else
-            return index + C_S;
-         end if;
-      end function down;
-
-      pure function left (
-         index : index_type
-      ) return index_type is
-      begin
-         if get_col(index) = 0 then
-            return index + C_W + G_COLS;
-         else
-            return index + C_W;
-         end if;
-      end function left;
-
-      pure function right (
-         index : index_type
-      ) return index_type is
-      begin
-         if get_col(index) = G_COLS - 1 then
-            return index + C_E - G_COLS;
-         else
-            return index + C_E;
-         end if;
-      end function right;
-
+      prev_v : std_logic_vector; -- previous row
+      cur_v  : std_logic_vector; -- current row
+      next_v : std_logic_vector; -- next row
+      col_v  : COL_TYPE          -- current column index
+   ) return std_logic_vector is
+      variable next_col_v : COL_TYPE;
+      variable prev_col_v : COL_TYPE;
    --
    begin
+      next_col_v := (col_v + 1) mod G_COLS;
+      prev_col_v := (col_v - 1) mod G_COLS;
       return (
-         board_v(up(index_v) / G_COLS)(up(index_v) mod G_COLS),
-         board_v(down(index_v) / G_COLS)(down(index_v) mod G_COLS),
-         board_v(left(index_v) / G_COLS)(left(index_v) mod G_COLS),
-         board_v(right(index_v) / G_COLS)(right(index_v) mod G_COLS),
-         board_v(up(right(index_v)) / G_COLS)(up(right(index_v)) mod G_COLS),
-         board_v(down(right(index_v)) / G_COLS)(down(right(index_v)) mod G_COLS),
-         board_v(up(left(index_v)) / G_COLS)(up(left(index_v)) mod G_COLS),
-         board_v(down(left(index_v)) / G_COLS)(down(left(index_v)) mod G_COLS)
+         prev_v(col_v),
+         next_v(col_v),
+         cur_v(prev_col_v),
+         cur_v(next_col_v),
+         prev_v(prev_col_v),
+         prev_v(next_col_v),
+         next_v(prev_col_v),
+         next_v(next_col_v)
       );
    end function get_neighbours;
 
@@ -167,10 +96,10 @@ architecture structural of life is
       return C_COUNT_ONES_4(to_integer(input(3 downto 0))) + C_COUNT_ONES_4(to_integer(input(7 downto 4)));
    end function count_ones;
 
-   type     state_type is (IDLE_ST, READ_FIRST_ST, READ_ST, READ_LAST_ST, UPDATE_ST, WRITE_ST);
-   signal   state  : state_type                      := IDLE_ST;
-   signal   addr   : std_logic_vector(9 downto 0);
-   signal   addr_d : std_logic_vector(9 downto 0);
+   type    state_type is (IDLE_ST, READ_FIRST_ST, READ_ST, READ_LAST_ST, UPDATE_ST, WRITE_ST);
+   signal  state  : state_type                     := IDLE_ST;
+   signal  addr   : std_logic_vector(9 downto 0);
+   signal  addr_d : std_logic_vector(9 downto 0);
 
 begin
 
@@ -180,6 +109,8 @@ begin
    -- This holds the actual cells
    board_proc : process (clk_i)
       variable neighbour_count_v : COUNT_TYPE;
+      variable prev_row_v        : ROW_TYPE; -- previous row index
+      variable next_row_v        : ROW_TYPE; -- next row index
    begin
       if rising_edge(clk_i) then
          addr_d  <= addr_o;
@@ -198,7 +129,7 @@ begin
                state  <= READ_ST;
 
             when READ_ST =>
-               board(to_integer(addr_d)) <= rd_data_i(G_COLS-1 downto 0);
+               board(to_integer(addr_d)) <= rd_data_i(G_COLS - 1 downto 0);
 
                if addr_o = G_ROWS - 1 then
                   state <= READ_LAST_ST;
@@ -207,26 +138,32 @@ begin
                end if;
 
             when READ_LAST_ST =>
-               board(to_integer(addr_d)) <= rd_data_i(G_COLS-1 downto 0);
-               state <= UPDATE_ST;
+               board(to_integer(addr_d)) <= rd_data_i(G_COLS - 1 downto 0);
+               state                     <= UPDATE_ST;
 
             when UPDATE_ST =>
                --
-               for index in INDEX_TYPE loop
-                  neighbour_count_v := count_ones(get_neighbours(board, index));
-                  board(index / G_COLS)(index mod G_COLS) <= new_cell(neighbour_count_v,
-                  board(index / G_COLS)(index mod G_COLS));
+               for row in 0 to G_ROWS - 1 loop
+                  prev_row_v := (row - 1) mod G_ROWS;
+                  next_row_v := (row + 1) mod G_ROWS;
+
+                  for col in 0 to G_COLS - 1 loop
+                     neighbour_count_v := count_ones(get_neighbours(board(prev_row_v), board(row), board(next_row_v), col));
+                     board(row)(col)   <= new_cell(neighbour_count_v, board(row)(col));
+                  end loop;
+
+               --
                end loop;
 
                addr  <= (others => '0');
                state <= WRITE_ST;
 
             when WRITE_ST =>
-               addr_o <= addr;
+               addr_o                         <= addr;
 
-               wr_data_o(G_COLS-1 downto 0) <= board(to_integer(addr));
+               wr_data_o(G_COLS - 1 downto 0) <= board(to_integer(addr));
 
-               wr_en_o <= '1';
+               wr_en_o                        <= '1';
                if addr = G_ROWS - 1 then
                   state <= IDLE_ST;
                else
