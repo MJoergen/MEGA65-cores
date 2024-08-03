@@ -1,19 +1,20 @@
 onerror {resume}
 quietly WaveActivateNextPane {} 0
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clock_a
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clen_a
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/address_a
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/data_a
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/wren_a
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/q_a
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clock_b
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clen_b
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/address_b
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/data_b
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/wren_b
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/q_b
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/address_a_reg
-add wave -noupdate -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/address_b_reg
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clock_a
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clen_a
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/address_a
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/data_a
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/wren_a
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/q_a
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clock_b
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/clen_b
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/address_b
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/data_b
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/wren_b
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/q_b
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/ram
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/address_a_reg
+add wave -noupdate -expand -group tdp_ram /tb_mega65_core/mega65_core_inst/tdp_ram_inst/address_b_reg
 add wave -noupdate -group video_wrapper /tb_mega65_core/mega65_core_inst/video_wrapper_inst/video_clk_i
 add wave -noupdate -group video_wrapper /tb_mega65_core/mega65_core_inst/video_wrapper_inst/video_rst_i
 add wave -noupdate -group video_wrapper /tb_mega65_core/mega65_core_inst/video_wrapper_inst/video_count_i
@@ -124,11 +125,12 @@ add wave -noupdate -expand -group controller /tb_mega65_core/mega65_core_inst/co
 add wave -noupdate -expand -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/state
 add wave -noupdate -expand -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/cur_col
 add wave -noupdate -expand -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/cur_row
+add wave -noupdate -expand -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/wait_for_ram
 add wave -noupdate -expand -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/lfsr_output
 add wave -noupdate -expand -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/rand7
 add wave -noupdate -expand -group controller /tb_mega65_core/mega65_core_inst/controller_wrapper_inst/controller_inst/step_counter
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {53320426151 fs} 0}
+WaveRestoreCursors {{Cursor 1} {53083181559 fs} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 188
 configure wave -valuecolwidth 100
@@ -144,4 +146,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 fs} {105 us}
+WaveRestoreZoom {53041565794 fs} {53210474735 fs}

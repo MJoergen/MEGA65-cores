@@ -14,6 +14,7 @@ entity controller_wrapper is
    generic (
       G_MAIN_CLK_HZ   : natural;
       G_UART_BAUDRATE : natural;
+      G_CELL_BITS     : natural;
       G_ROWS          : integer;
       G_COLS          : integer
    );
@@ -29,8 +30,8 @@ entity controller_wrapper is
       main_life_count_o       : out   std_logic_vector(15 downto 0);
       main_board_busy_o       : out   std_logic;
       main_board_addr_o       : out   std_logic_vector(9 downto 0);
-      main_board_rd_data_i    : in    std_logic_vector(G_COLS - 1 downto 0);
-      main_board_wr_data_o    : out   std_logic_vector(G_COLS - 1 downto 0);
+      main_board_rd_data_i    : in    std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+      main_board_wr_data_o    : out   std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
       main_board_wr_en_o      : out   std_logic
    );
 end entity controller_wrapper;
@@ -292,8 +293,9 @@ begin
 
    controller_inst : entity work.controller
       generic map (
-         G_ROWS => G_ROWS,
-         G_COLS => G_COLS
+         G_CELL_BITS => G_CELL_BITS,
+         G_ROWS      => G_ROWS,
+         G_COLS      => G_COLS
       )
       port map (
          clk_i           => main_clk_i,
@@ -306,24 +308,13 @@ begin
          uart_tx_data_o  => main_uart_tx_data,
          ready_i         => main_life_ready_i,
          step_o          => main_life_step_o,
+         count_o         => main_life_count_o,
          board_busy_o    => main_board_busy_o,
          board_addr_o    => main_board_addr_o,
          board_rd_data_i => main_board_rd_data_i,
          board_wr_data_o => main_board_wr_data_o,
          board_wr_en_o   => main_board_wr_en_o
       ); -- controller_inst
-
-   main_life_count_proc : process (main_clk_i)
-   begin
-      if rising_edge(main_clk_i) then
-         if main_life_step_o then
-            main_life_count_o <= main_life_count_o + 1;
-         end if;
-         if main_rst_i then
-            main_life_count_o <= (others => '0');
-         end if;
-      end if;
-   end process main_life_count_proc;
 
 end architecture synthesis;
 

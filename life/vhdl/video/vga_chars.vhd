@@ -15,7 +15,7 @@ entity vga_chars is
       vga_hcount_i : in    std_logic_vector(10 downto 0);
       vga_vcount_i : in    std_logic_vector(10 downto 0);
       vga_blank_i  : in    std_logic;
-      vga_rgb_o    : out   std_logic_vector(7 downto 0);
+      vga_rgb_o    : out   std_logic_vector(23 downto 0);
       vga_x_o      : out   std_logic_vector(7 downto 0);
       vga_y_o      : out   std_logic_vector(7 downto 0);
       vga_char_i   : in    std_logic_vector(7 downto 0);
@@ -112,7 +112,7 @@ begin
    end process stage2_proc;
 
    -- Calculate pixel at current position ('0' or '1')
-   pix_2     <= bitmap_2(bitmap_index_2);
+   pix_2                   <= bitmap_2(bitmap_index_2);
 
 
    --------------------------------------------------
@@ -136,7 +136,9 @@ begin
       end if;
    end process stage3_proc;
 
-   vga_rgb_o <= pixel_3;
+   vga_rgb_o(23 downto 16) <= pixel_3(7 downto 5) & "00000";
+   vga_rgb_o(15 downto 8)  <= pixel_3(4 downto 2) & "00000";
+   vga_rgb_o(7 downto 0)   <= pixel_3(1 downto 0) & "000000";
 
 end architecture synthesis;
 

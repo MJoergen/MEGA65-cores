@@ -8,36 +8,35 @@ library ieee;
 
 entity tb_life is
    generic (
-      G_ROWS : integer;
-      G_COLS : integer
+      G_CELL_BITS : integer;
+      G_ROWS      : integer;
+      G_COLS      : integer
    );
 end entity tb_life;
 
 architecture simulation of tb_life is
 
-   constant C_ROWS : integer    := G_ROWS;
-   constant C_COLS : integer    := G_COLS;
-
    -- Clock, reset, and enable
-   signal   running : std_logic := '1';
-   signal   rst     : std_logic := '1';
-   signal   clk     : std_logic := '1';
-   signal   ready   : std_logic;
-   signal   en      : std_logic;
+   signal running : std_logic                                           := '1';
+   signal rst     : std_logic                                           := '1';
+   signal clk     : std_logic                                           := '1';
+   signal ready   : std_logic;
+   signal en      : std_logic;
 
    -- The current board status
-   signal   addr    : std_logic_vector(9 downto 0);
-   signal   rd_data : std_logic_vector(G_COLS-1 downto 0) := (others => '0');
-   signal   wr_data : std_logic_vector(G_COLS-1 downto 0) := (others => '0');
-   signal   wr_en   : std_logic;
+   signal addr    : std_logic_vector(9 downto 0);
+   signal rd_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0) := (others => '0');
+   signal wr_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0) := (others => '0');
+   signal wr_en   : std_logic;
 
    -- Controls the individual cells of the board
-   signal   index  : integer range C_ROWS * C_COLS - 1 downto 0;
-   signal   value  : std_logic;
-   signal   update : std_logic;
+   signal tb_wr_row   : integer range G_ROWS - 1 downto 0;
+   signal tb_wr_col   : integer range G_COLS - 1 downto 0;
+   signal tb_wr_value : std_logic_vector(G_CELL_BITS - 1 downto 0);
+   signal tb_wr_en    : std_logic;
 
-   type     board_type is array (natural range <>) of std_logic_vector(C_COLS - 1 downto 0);
-   signal   board : board_type(C_ROWS - 1 downto 0);
+   type   board_type is array (natural range <>) of std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+   signal board : board_type(G_ROWS - 1 downto 0);
 
 begin
 
@@ -46,8 +45,9 @@ begin
 
    life_inst : entity work.life
       generic map (
-         G_ROWS => C_ROWS,
-         G_COLS => C_COLS
+         G_CELL_BITS => G_CELL_BITS,
+         G_ROWS      => G_ROWS,
+         G_COLS      => G_COLS
       )
       port map (
          rst_i     => rst,
@@ -63,12 +63,12 @@ begin
    board_proc : process (clk)
    begin
       if rising_edge(clk) then
-         rd_data(C_COLS - 1 downto 0) <= board(to_integer(addr));
+         rd_data <= board(to_integer(addr));
          if wr_en = '1' then
-            board(to_integer(addr)) <= wr_data(C_COLS - 1 downto 0);
+            board(to_integer(addr)) <= wr_data;
          end if;
-         if update = '1' then
-            board(index / C_COLS)(index mod C_COLS) <= value;
+         if tb_wr_en = '1' then
+            board(tb_wr_row)((tb_wr_col + 1) * G_CELL_BITS - 1 downto tb_wr_col * G_CELL_BITS) <= tb_wr_value;
          end if;
          if rst = '1' then
             board <= (others => (others => '0'));
@@ -80,24 +80,27 @@ begin
       --
 
       procedure write_cell (
-         col : integer range 0 to C_COLS - 1;
-         row : integer range 0 to C_ROWS - 1
-      ) is
+         col : integer range 0 to G_COLS - 1;
+         row : integer range 0 to G_ROWS - 1;
+         val : integer range 0 to 2 ** G_CELL_BITS - 1
+      )
+         is
       begin
-         index  <= row * C_COLS + col;
-         value  <= '1';
-         update <= '1';
+         tb_wr_row   <= row;
+         tb_wr_col   <= col;
+         tb_wr_value <= to_stdlogicvector(val, G_CELL_BITS);
+         tb_wr_en    <= '1';
          wait until clk = '1';
-         update <= '0';
+         tb_wr_en    <= '0';
       end procedure write_cell;
 
-
-      procedure print_board (
+      procedure
+         print_board (
          arg : board_type
       ) is
       begin
          --
-         for i in C_ROWS - 1 downto 0 loop
+         for i in G_ROWS - 1 downto 0 loop
             report to_string(arg(i));
          end loop;
 
@@ -107,46 +110,60 @@ begin
       procedure verify_board (
          arg : board_type
       ) is
+         variable board_row_v  : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+         variable board_cell_v : std_logic_vector(G_CELL_BITS - 1 downto 0);
+         variable exp_row_v    : std_logic_vector(4 * G_COLS - 1 downto 0);
+         variable exp_cell_v   : std_logic_vector(3 downto 0);
+         variable error_v      : boolean;
       begin
+         error_v := false;
          --
+         for i in arg'range loop
+            board_row_v  := board(i / G_COLS);
+            board_cell_v := board_row_v((i + 1) * G_CELL_BITS - 1 downto i * G_CELL_BITS);
+            exp_row_v    := arg(i / G_COLS);
+            exp_cell_v   := exp_row_v((i + 1) * 4 - 1 downto i * 4);
+            if to_integer(board_cell_v) /= to_integer(exp_cell_v) then
+               error_v := true;
+            end if;
+         end loop;
 
-         if board /= arg then
+         if error_v then
             report "Got:";
             print_board(board);
 
             report "Expected:";
             print_board(arg);
          end if;
-
       --
       end procedure verify_board;
 
       --
-      variable exp_board_v : board_type(C_ROWS - 1 downto 0);
+      variable exp_board_v : board_type(G_ROWS - 1 downto 0);
    begin
       en          <= '0';
-      update      <= '0';
+      tb_wr_en    <= '0';
       wait until rst = '0';
       report "Test started";
 
-      write_cell(4, 6);
-      write_cell(3, 5);
-      write_cell(5, 4);
-      write_cell(4, 4);
-      write_cell(3, 4);
+      write_cell(4, 6, 7);
+      write_cell(3, 5, 7);
+      write_cell(5, 4, 7);
+      write_cell(4, 4, 7);
+      write_cell(3, 4, 7);
 
       wait until clk = '1';
 
       exp_board_v :=
       (
-         "00000000",
-         "00010000",
-         "00001000",
-         "00111000",
-         "00000000",
-         "00000000",
-         "00000000",
-         "00000000"
+         X"00000000",
+         X"00070000",
+         X"00007000",
+         X"00777000",
+         X"00000000",
+         X"00000000",
+         X"00000000",
+         X"00000000"
       );
 
       verify_board(exp_board_v);
@@ -169,14 +186,14 @@ begin
 
       exp_board_v :=
       (
-         "00000000",
-         "00000000",
-         "00001000",
-         "00000100",
-         "00011100",
-         "00000000",
-         "00000000",
-         "00000000"
+         X"00000000",
+         X"00000000",
+         X"00001000",
+         X"00000100",
+         X"00011100",
+         X"00000000",
+         X"00000000",
+         X"00000000"
       );
       verify_board(exp_board_v);
 

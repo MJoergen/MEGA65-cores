@@ -20,7 +20,7 @@ package globals is
    constant QNICE_FIRMWARE       : string                        := "../../m2m-rom/m2m-rom.rom";
 
    constant BOARD_CLK_SPEED      : natural                       := 100_000_000;
-   constant CORE_CLK_SPEED       : natural                       := 153_846_154;
+   constant CORE_CLK_SPEED       : natural                       := 125_000_000;
 
    constant VGA_DX               : natural                       := 640;
    constant VGA_DY               : natural                       := 480;

@@ -21,8 +21,9 @@ entity mega65_core is
    generic (
       G_FONT_PATH     : string  := "";
       G_UART_BAUDRATE : natural := 115_200;
-      G_COLS          : integer := 60;
-      G_ROWS          : integer := 40;
+      G_CELL_BITS     : integer := 3;
+      G_COLS          : integer := 80;
+      G_ROWS          : integer := 59;
       G_BOARD         : string -- Which platform are we running on.
    );
    port (
@@ -229,24 +230,24 @@ architecture synthesis of mega65_core is
 
    signal   main_life_ready   : std_logic;
    signal   main_life_addr    : std_logic_vector(9 downto 0);
-   signal   main_life_wr_data : std_logic_vector(G_COLS-1 downto 0);
+   signal   main_life_wr_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
    signal   main_life_wr_en   : std_logic;
    signal   main_life_step    : std_logic;
    signal   main_life_count   : std_logic_vector(15 downto 0);
 
    signal   main_controller_busy    : std_logic;
    signal   main_controller_addr    : std_logic_vector(9 downto 0);
-   signal   main_controller_wr_data : std_logic_vector(G_COLS-1 downto 0);
+   signal   main_controller_wr_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
    signal   main_controller_wr_en   : std_logic;
 
    signal   main_tdp_addr    : std_logic_vector(9 downto 0);
-   signal   main_tdp_rd_data : std_logic_vector(G_COLS-1 downto 0);
-   signal   main_tdp_wr_data : std_logic_vector(G_COLS-1 downto 0);
+   signal   main_tdp_rd_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+   signal   main_tdp_wr_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
    signal   main_tdp_wr_en   : std_logic;
 
    signal   video_count    : std_logic_vector(15 downto 0);
    signal   video_mem_addr : std_logic_vector(9 downto 0);
-   signal   video_mem_data : std_logic_vector(G_COLS-1 downto 0);
+   signal   video_mem_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
 
 begin
 
@@ -263,8 +264,9 @@ begin
    -- Instantiate main
    life_inst : entity work.life
       generic map (
-         G_ROWS => G_ROWS,
-         G_COLS => G_COLS
+         G_CELL_BITS => G_CELL_BITS,
+         G_ROWS      => G_ROWS,
+         G_COLS      => G_COLS
       )
       port map (
          clk_i     => main_clk_o,
@@ -281,6 +283,7 @@ begin
       generic map (
          G_MAIN_CLK_HZ   => CORE_CLK_SPEED,
          G_UART_BAUDRATE => G_UART_BAUDRATE,
+         G_CELL_BITS     => G_CELL_BITS,
          G_ROWS          => G_ROWS,
          G_COLS          => G_COLS
       )
@@ -311,7 +314,7 @@ begin
    tdp_ram_inst : entity work.tdp_ram
       generic map (
          ADDR_WIDTH => 10,
-         DATA_WIDTH => G_COLS
+         DATA_WIDTH => G_CELL_BITS * G_COLS
       )
       port map (
          clock_a   => main_clk_o,
@@ -350,6 +353,7 @@ begin
       generic map (
          G_VIDEO_MODE => C_VIDEO_MODE,
          G_FONT_PATH  => G_FONT_PATH,
+         G_CELL_BITS  => G_CELL_BITS,
          G_ROWS       => G_ROWS,
          G_COLS       => G_COLS
       )

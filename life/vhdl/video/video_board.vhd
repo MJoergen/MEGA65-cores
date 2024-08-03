@@ -8,6 +8,7 @@ library work;
 entity video_board is
    generic (
       G_VIDEO_MODE : video_modes_t;
+      G_CELL_BITS  : integer;
       G_ROWS       : integer;
       G_COLS       : integer
    );
@@ -18,7 +19,7 @@ entity video_board is
       video_y_i      : in    std_logic_vector(7 downto 0);
       video_count_i  : in    std_logic_vector(15 downto 0);
       video_addr_o   : out   std_logic_vector(9 downto 0);
-      video_data_i   : in    std_logic_vector(G_COLS-1 downto 0);
+      video_data_i   : in    std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
       video_char_o   : out   std_logic_vector(7 downto 0);
       video_colors_o : out   std_logic_vector(15 downto 0)
    );
@@ -31,8 +32,8 @@ architecture synthesis of video_board is
    constant C_PIXEL_GREY  : std_logic_vector(7 downto 0) := B"010_010_01";
    constant C_PIXEL_LIGHT : std_logic_vector(7 downto 0) := B"100_100_10";
 
-   constant C_START_X : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.H_PIXELS / 16 - G_COLS / 2, 8);
-   constant C_START_Y : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.V_PIXELS / 16 - G_ROWS / 2, 8);
+   constant C_START_X : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.H_PIXELS / 16 - (G_COLS + 1) / 2, 8);
+   constant C_START_Y : std_logic_vector(7 downto 0)     := to_stdlogicvector(G_VIDEO_MODE.V_PIXELS / 16 - (G_ROWS + 1) / 2, 8);
 
    signal   video_dec_valid : std_logic;
    signal   video_dec_ready : std_logic;
@@ -46,6 +47,8 @@ begin
 
    char_proc : process (video_clk_i)
       variable video_dec_index_v : natural range 0 to 4;
+      variable col_v             : natural range 0 to G_COLS - 1;
+      variable cell_v            : std_logic_vector(G_CELL_BITS - 1 downto 0);
    begin
       if rising_edge(video_clk_i) then
          video_colors_o <= C_PIXEL_GREY & C_PIXEL_GREY;
@@ -53,12 +56,14 @@ begin
 
          if video_x_i >= C_START_X and video_x_i < C_START_X + G_COLS and
             video_y_i >= C_START_Y and video_y_i < C_START_Y + G_ROWS then
-            if video_data_i(to_integer(video_x_i - C_START_X)) = '1' then
+            col_v  := to_integer(video_x_i - C_START_X);
+            cell_v := video_data_i((col_v + 1) * G_CELL_BITS - 1 downto col_v * G_CELL_BITS);
+            if or (cell_v) = '1' then
                video_char_o <= X"58";
             else
                video_char_o <= X"2E";
             end if;
-            video_colors_o <= C_PIXEL_DARK & C_PIXEL_LIGHT;
+            video_colors_o <= C_PIXEL_DARK & (C_PIXEL_LIGHT / (2 ** G_CELL_BITS - to_integer(cell_v)));
          end if;
          if video_x_i >= C_START_X and video_x_i < C_START_X + 5 and
             video_y_i = C_START_Y + G_ROWS then

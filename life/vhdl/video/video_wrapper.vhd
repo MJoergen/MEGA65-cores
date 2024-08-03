@@ -9,6 +9,7 @@ entity video_wrapper is
    generic (
       G_VIDEO_MODE : video_modes_t;
       G_FONT_PATH  : string := "";
+      G_CELL_BITS  : integer;
       G_ROWS       : integer;
       G_COLS       : integer
    );
@@ -17,7 +18,7 @@ entity video_wrapper is
       video_rst_i    : in    std_logic;
       video_count_i  : in    std_logic_vector(15 downto 0);
       video_addr_o   : out   std_logic_vector(9 downto 0);
-      video_data_i   : in    std_logic_vector(G_COLS-1 downto 0);
+      video_data_i   : in    std_logic_vector(G_CELL_BITS * G_COLS-1 downto 0);
       video_ce_o     : out   std_logic;
       video_ce_ovl_o : out   std_logic;
       video_red_o    : out   std_logic_vector(7 downto 0);
@@ -42,6 +43,7 @@ begin
    video_board_inst : entity work.video_board
       generic map (
          G_VIDEO_MODE => G_VIDEO_MODE,
+         G_CELL_BITS  => G_CELL_BITS,
          G_ROWS       => G_ROWS,
          G_COLS       => G_COLS
       )

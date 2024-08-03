@@ -28,8 +28,9 @@ library ieee;
 
 entity life is
    generic (
-      G_ROWS : integer;
-      G_COLS : integer
+      G_CELL_BITS : integer;
+      G_ROWS      : integer;
+      G_COLS      : integer
    );
    port (
       -- Clock, reset, and enable
@@ -39,8 +40,8 @@ entity life is
       step_i    : in    std_logic;
 
       addr_o    : out   std_logic_vector(9 downto 0);
-      rd_data_i : in    std_logic_vector(G_COLS - 1 downto 0);
-      wr_data_o : out   std_logic_vector(G_COLS - 1 downto 0);
+      rd_data_i : in    std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+      wr_data_o : out   std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
       wr_en_o   : out   std_logic
    );
 end entity life;
@@ -53,28 +54,57 @@ architecture structural of life is
 
    -- Calculate the new state of the cell
 
-   pure function new_state (
+   pure function new_cell (
       neighbours : COUNT_TYPE;
-      cur_state   : std_logic
-   ) return std_logic is
+      cur_cell   : std_logic_vector
+   ) return std_logic_vector is
       -- The fate of dead cells.
       constant C_BIRTH   : std_logic_vector(count_type) := "000100000";
       -- The fate of live cells.
       constant C_SURVIVE : std_logic_vector(count_type) := "001100000";
+      variable res_v     : std_logic_vector(G_CELL_BITS - 1 downto 0);
    begin
+      assert cur_cell'length = G_CELL_BITS;
       --
-      case cur_state is
+      res_v := (others => '0');
+
+      case or (cur_cell) is
 
          when '1' =>
-            return C_SURVIVE(neighbours);
+            if C_SURVIVE(neighbours) = '1' then
+               if cur_cell > 1 then
+                  res_v := cur_cell - 1;
+               else
+                  res_v := cur_cell;
+               end if;
+            else
+               res_v := (others => '0');
+            end if;
 
          when others =>
-            return C_BIRTH(neighbours);
+            if C_BIRTH(neighbours) = '1' then
+               res_v := (others => '1');
+            else
+               res_v := (others => '0');
+            end if;
 
       end case;
 
-      return '0';
-   end function new_state;
+      return res_v;
+
+   --
+   end function new_cell;
+
+   pure function get_cell (
+      arg : std_logic_vector;
+      col : integer
+   ) return std_logic
+   is
+      variable cell_v : std_logic_vector(G_CELL_BITS - 1 downto 0);
+   begin
+      cell_v := arg((col + 1) * G_CELL_BITS - 1 downto col * G_CELL_BITS);
+      return or (cell_v);
+   end function get_cell;
 
 
    -- Return the eight neighbours
@@ -92,14 +122,14 @@ architecture structural of life is
       next_col_v := (col_v + 1) mod G_COLS;
       prev_col_v := (col_v - 1) mod G_COLS;
       return (
-         prev_v(col_v),
-         next_v(col_v),
-         cur_v(prev_col_v),
-         cur_v(next_col_v),
-         prev_v(prev_col_v),
-         prev_v(next_col_v),
-         next_v(prev_col_v),
-         next_v(next_col_v)
+         get_cell(prev_v, col_v),
+         get_cell(next_v, col_v),
+         get_cell(cur_v, prev_col_v),
+         get_cell(cur_v, next_col_v),
+         get_cell(prev_v, prev_col_v),
+         get_cell(prev_v, next_col_v),
+         get_cell(next_v, prev_col_v),
+         get_cell(next_v, next_col_v)
       );
    end function get_neighbours;
 
@@ -120,9 +150,31 @@ architecture structural of life is
    signal  state     : state_type := IDLE_ST;
    signal  rd_addr   : std_logic_vector(9 downto 0);
    signal  wr_addr   : std_logic_vector(9 downto 0);
-   signal  row_first : std_logic_vector(G_COLS - 1 downto 0);
-   signal  row_cur   : std_logic_vector(G_COLS - 1 downto 0);
-   signal  row_next  : std_logic_vector(G_COLS - 1 downto 0);
+   signal  row_first : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+   signal  row_cur   : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+   signal  row_next  : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+
+   pure function get_next_row (
+      arg : ROW_TYPE
+   ) return ROW_TYPE is
+   begin
+      if arg = G_ROWS - 1 then
+         return 0;
+      else
+         return arg + 1;
+      end if;
+   end function get_next_row;
+
+   pure function get_prev_row (
+      arg : ROW_TYPE
+   ) return ROW_TYPE is
+   begin
+      if arg = 0 then
+         return G_ROWS - 1;
+      else
+         return arg - 1;
+      end if;
+   end function get_prev_row;
 
 begin
 
@@ -134,7 +186,8 @@ begin
    -- that the read data from the previous clock cycle is available.
    ram_proc : process (all)
       variable neighbour_count_v : COUNT_TYPE;
-      variable rd_data_v         : std_logic_vector(G_COLS - 1 downto 0);
+      variable rd_data_v         : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+      variable cell_v            : std_logic_vector(G_CELL_BITS - 1 downto 0);
    begin
       -- Default values (read from RAM)
       wr_data_o <= (others => '0');
@@ -148,8 +201,9 @@ begin
          end if;
 
          for col in 0 to G_COLS - 1 loop
-            neighbour_count_v := count_ones(get_neighbours(row_cur, row_next, rd_data_v, col));
-            wr_data_o(col)    <= new_state(neighbour_count_v, row_next(col));
+            cell_v                                                          := row_next((col + 1) * G_CELL_BITS - 1 downto col * G_CELL_BITS);
+            neighbour_count_v                                               := count_ones(get_neighbours(row_cur, row_next, rd_data_v, col));
+            wr_data_o((col + 1) * G_CELL_BITS - 1 downto col * G_CELL_BITS) <= new_cell(neighbour_count_v, cell_v);
          end loop;
 
          addr_o  <= wr_addr;
@@ -185,13 +239,13 @@ begin
 
                row_cur   <= row_next;
                row_next  <= rd_data_i;
-               rd_addr   <= to_stdlogicvector((to_integer(rd_addr) + 1) mod G_ROWS, 10);
-               wr_addr   <= to_stdlogicvector((to_integer(rd_addr) - 1) mod G_ROWS, 10);
+               rd_addr   <= to_stdlogicvector(get_next_row(to_integer(rd_addr)), 10);
+               wr_addr   <= to_stdlogicvector(get_prev_row(to_integer(rd_addr)), 10);
                state     <= WRITE_ROW_ST;
 
             when READ_ROW_NEXT_ST =>
-               rd_addr <= to_stdlogicvector((to_integer(rd_addr) + 1) mod G_ROWS, 10);
-               wr_addr <= to_stdlogicvector((to_integer(rd_addr) - 1) mod G_ROWS, 10);
+               rd_addr <= to_stdlogicvector(get_next_row(to_integer(rd_addr)), 10);
+               wr_addr <= to_stdlogicvector(get_prev_row(to_integer(rd_addr)), 10);
                state   <= WRITE_ROW_ST;
 
             when WRITE_ROW_ST =>

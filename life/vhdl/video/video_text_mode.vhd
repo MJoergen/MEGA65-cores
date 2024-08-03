@@ -41,7 +41,7 @@ architecture synthesis of video_text_mode is
    signal slr_in  : std_logic_vector(3 downto 0);
    signal slr_out : std_logic_vector(3 downto 0);
 
-   signal video_rgb : std_logic_vector(7 downto 0);
+   signal video_rgb : std_logic_vector(23 downto 0);
 
 begin
 
@@ -104,9 +104,9 @@ begin
 
    video_ce_o     <= '1';
    video_ce_ovl_o <= '1';
-   video_red_o    <= video_rgb;
-   video_green_o  <= video_rgb;
-   video_blue_o   <= video_rgb;
+   video_red_o    <= video_rgb(23 downto 16);
+   video_green_o  <= video_rgb(15 downto 8);
+   video_blue_o   <= video_rgb(7 downto 0);
 
 end architecture synthesis;
 

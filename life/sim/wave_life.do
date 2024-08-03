@@ -9,9 +9,10 @@ add wave -noupdate -group tb /tb_life/addr
 add wave -noupdate -group tb /tb_life/rd_data
 add wave -noupdate -group tb /tb_life/wr_data
 add wave -noupdate -group tb /tb_life/wr_en
-add wave -noupdate -group tb /tb_life/index
-add wave -noupdate -group tb /tb_life/value
-add wave -noupdate -group tb /tb_life/update
+add wave -noupdate -group tb /tb_life/tb_wr_row
+add wave -noupdate -group tb /tb_life/tb_wr_col
+add wave -noupdate -group tb /tb_life/tb_wr_value
+add wave -noupdate -group tb /tb_life/tb_wr_en
 add wave -noupdate -group tb /tb_life/board
 add wave -noupdate -expand -group life /tb_life/life_inst/clk_i
 add wave -noupdate -expand -group life /tb_life/life_inst/rst_i
@@ -28,7 +29,7 @@ add wave -noupdate -expand -group life /tb_life/life_inst/row_first
 add wave -noupdate -expand -group life /tb_life/life_inst/row_cur
 add wave -noupdate -expand -group life /tb_life/life_inst/row_next
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {5086512800 fs} 0}
+WaveRestoreCursors {{Cursor 1} {275698324 fs} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 150
 configure wave -valuecolwidth 100

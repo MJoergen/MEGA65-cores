@@ -4,8 +4,9 @@ library ieee;
 
 entity controller is
    generic (
-      G_ROWS : integer;
-      G_COLS : integer
+      G_CELL_BITS : integer;
+      G_ROWS      : integer;
+      G_COLS      : integer
    );
    port (
       clk_i           : in    std_logic;
@@ -18,10 +19,11 @@ entity controller is
       uart_tx_data_o  : out   std_logic_vector(7 downto 0);
       ready_i         : in    std_logic;
       step_o          : out   std_logic;
+      count_o         : out   std_logic_vector(15 downto 0);
       board_busy_o    : out   std_logic;
       board_addr_o    : out   std_logic_vector(9 downto 0);
-      board_rd_data_i : in    std_logic_vector(G_COLS - 1 downto 0);
-      board_wr_data_o : out   std_logic_vector(G_COLS - 1 downto 0);
+      board_rd_data_i : in    std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+      board_wr_data_o : out   std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
       board_wr_en_o   : out   std_logic
    );
 end entity controller;
@@ -33,8 +35,9 @@ architecture synthesis of controller is
    type     state_type is (INIT_ST, IDLE_ST, CONTINUOUS_ST, PRINTING_ST);
    signal   state : state_type                           := INIT_ST;
 
-   signal   cur_col : natural range 0 to G_COLS + 1;
-   signal   cur_row : natural range 0 to G_ROWS;
+   signal   cur_col      : natural range 0 to G_COLS + 1;
+   signal   cur_row      : natural range 0 to G_ROWS;
+   signal   wait_for_ram : std_logic;
 
    signal   lfsr_output : std_logic_vector(31 downto 0);
    signal   rand7       : std_logic_vector(6 downto 0);
@@ -69,18 +72,19 @@ begin
       ); -- lfsr_inst
 
    -- Select seven widely (but unevenly) spaced bits from the LFSR output
-   rand7           <= lfsr_output(20) & lfsr_output(27) & lfsr_output(11) & lfsr_output(17) &
-                      lfsr_output(0) & lfsr_output(25) & lfsr_output(7);
+   rand7        <= lfsr_output(20) & lfsr_output(27) & lfsr_output(11) & lfsr_output(17) &
+                   lfsr_output(0) & lfsr_output(25) & lfsr_output(7);
 
 
-   board_busy_o    <= '1' when state = PRINTING_ST or board_wr_en_o = '1' else
-                      '0';
-   board_addr_o    <= to_stdlogicvector(cur_row, 10);
+   board_busy_o <= '1' when state = PRINTING_ST or board_wr_en_o = '1' else
+                   '0';
+   board_addr_o <= to_stdlogicvector(cur_row, 10);
 
-   cmd_ready_o <= '1' when state = IDLE_ST and ready_i = '1' else
-                  '0';
+   cmd_ready_o  <= '1' when state = IDLE_ST and ready_i = '1' else
+                   '0';
 
    fsm_proc : process (clk_i)
+      variable cell_v : std_logic_vector(G_CELL_BITS - 1 downto 0);
    begin
       if rising_edge(clk_i) then
          board_wr_en_o <= '0';
@@ -104,7 +108,8 @@ begin
                   end if;
                end if;
 
-               board_wr_data_o(cur_col) <= to_stdlogic(rand7 < (C_POPULATION_RATE * 128) / 100);
+               cell_v := (others => to_stdlogic(rand7 < (C_POPULATION_RATE * 128) / 100));
+               board_wr_data_o((cur_col + 1) * G_CELL_BITS - 1 downto cur_col * G_CELL_BITS) <= cell_v;
                if cur_col < G_COLS - 1 then
                   cur_col <= cur_col + 1;
                else
@@ -125,17 +130,20 @@ begin
                         -- "I"
                         cur_col <= 0;
                         cur_row <= 0;
+                        count_o <= (others => '0');
                         state   <= INIT_ST;
 
                      when X"50" =>
                         -- "P"
-                        cur_col <= 0;
-                        cur_row <= 0;
-                        state   <= PRINTING_ST;
+                        cur_col      <= 0;
+                        cur_row      <= 0;
+                        wait_for_ram <= '1';
+                        state        <= PRINTING_ST;
 
                      when X"53" =>
                         -- "S"
                         step_o <= '1';
+                        count_o <= count_o + 1;
 
                      when others =>
                         null;
@@ -146,20 +154,23 @@ begin
 
             when CONTINUOUS_ST =>
                step_o <= and(step_counter);
+               if and(step_counter) = '1' then
+                  count_o <= count_o + 1;
+               end if;
 
                if cmd_valid_i = '1' then
                   state <= IDLE_ST;
                end if;
 
             when PRINTING_ST =>
-               if uart_tx_ready_i = '1' then
+               wait_for_ram <= '0';
+               if uart_tx_ready_i = '1' and wait_for_ram = '0' then
                   if cur_col < G_COLS and cur_row < G_ROWS then
-                     if board_rd_data_i(cur_col) = '1' then
-                        -- "X"
-                        uart_tx_data_o <= X"58";
-                     else
-                        -- "."
+                     cell_v := board_rd_data_i((cur_col + 1) * G_CELL_BITS - 1 downto cur_col * G_CELL_BITS);
+                     if cell_v = 0 then
                         uart_tx_data_o <= X"2E";
+                     else
+                        uart_tx_data_o <= X"30" + cell_v;
                      end if;
                   else
                      if cur_col = G_COLS then
@@ -171,7 +182,8 @@ begin
                   uart_tx_valid_o <= '1';
 
                   if cur_col < G_COLS + 1 and cur_row < G_ROWS then
-                     cur_col <= cur_col + 1;
+                     cur_col      <= cur_col + 1;
+                     wait_for_ram <= '1';
                   else
                      cur_col <= 0;
                      if cur_row < G_ROWS then
@@ -188,6 +200,7 @@ begin
             cur_row <= 0;
             cur_col <= 0;
             state   <= INIT_ST;
+            count_o <= (others => '0');
          end if;
       end if;
    end process fsm_proc;

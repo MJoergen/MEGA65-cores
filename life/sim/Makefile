@@ -26,6 +26,7 @@ SRCS += tb_mega65_core.vhd
 TB = life
 TB = mega65_core
 
+GENERICS += -gG_CELL_BITS=4
 GENERICS += -gG_ROWS=8
 GENERICS += -gG_COLS=8
 GENERICS += -gG_BOARD=R6
