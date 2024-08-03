@@ -8,12 +8,27 @@ library ieee;
 -- 3. Any live cell with more than three live neighbours dies, as if by overcrowding.
 -- 4. Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
 
+-- Performance:
+-- The engine is pretty fast, in that it processes a complete row at a time.
+-- So the total time needed to process a 160x90 grid is 2*90 = 180 clock cycles,
+-- because each row needs to be read one and written once.
+-- For larger grids that require external memory (e.g. SDRAM), the limiting factor
+-- is the memory bandwidth. The SDRAM has a maximum memory bandwidth of 320 MB/s and a
+-- memory capacity of 64 MB.
+-- So a 10,000 by 10,000 grid with 3 bits per cell, will use 37.5 MB of memory and will
+-- require a memory transfer of 75 MB per generation, which equates to a frame rate of
+-- roughly 4 generations per second, assuming the memory bandwidth is the limiting factor.
 
--- This implementation stores three consecutive rows.
--- The read/write pattern for the BRAM
--- is as follows:
+-- Resource count:
+-- This implementation stores three consecutive rows. So in a 160x90 grid, with 3 bits per
+-- pixel, each row consists of 160*3 = 480 bits, and the total number of registers (for
+-- three rows) is 480*3 = 1440 registers.
+-- Larger grids (e.g. 10,000 by 10,000) will require rewriting the engine so it only
+-- processes e.g. 100 cells at a given time.
+
+-- The read/write pattern for the BRAM is as follows:
 -- * Read row N-1
--- * Read row 0
+-- * Read row 0, and also store it in row_first
 -- * Read row 1
 -- * Write row 0
 -- * Read row 2
@@ -23,7 +38,7 @@ library ieee;
 -- * etc...
 -- * Read row N-1
 -- * Write row N-2
--- * Read row 0 (not needed)
+-- * Read row 0 (not needed, use row_first instead)
 -- * Write row N-1
 
 entity life is
