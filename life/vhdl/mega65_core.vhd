@@ -22,8 +22,8 @@ entity mega65_core is
       G_FONT_PATH     : string  := "";
       G_UART_BAUDRATE : natural := 115_200;
       G_CELL_BITS     : integer := 3;
-      G_COLS          : integer := 80;
-      G_ROWS          : integer := 59;
+      G_COLS          : integer := 160;
+      G_ROWS          : integer := 89;
       G_BOARD         : string -- Which platform are we running on.
    );
    port (
@@ -226,7 +226,7 @@ end entity mega65_core;
 
 architecture synthesis of mega65_core is
 
-   constant C_VIDEO_MODE : video_modes_t := C_HDMI_640x480p_60;
+   constant C_VIDEO_MODE : video_modes_t := C_HDMI_720p_60;
 
    signal   main_life_ready   : std_logic;
    signal   main_life_addr    : std_logic_vector(9 downto 0);
@@ -439,7 +439,7 @@ begin
    qnice_osm_cfg_scaling_o <= (others => '1');
    qnice_retro15khz_o      <= '0';
    qnice_scandoubler_o     <= '0';       -- no scandoubler
-   qnice_video_mode_o      <= C_VIDEO_HDMI_640_60;
+   qnice_video_mode_o      <= C_VIDEO_HDMI_16_9_60;
    qnice_zoom_crop_o       <= '0';       -- 0 = no zoom/crop
 
 end architecture synthesis;
