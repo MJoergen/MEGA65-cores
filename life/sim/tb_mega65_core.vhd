@@ -15,8 +15,8 @@ library work;
 
 entity tb_mega65_core is
    generic (
-      G_ROWS  : integer := 8;
-      G_COLS  : integer := 8;
+      G_COLS  : integer := 160;
+      G_ROWS  : integer := 89;
       G_BOARD : string -- Which platform are we running on.
    );
 end entity tb_mega65_core;
@@ -169,7 +169,7 @@ begin
          main_reset_m2m_i        => '0',
          main_reset_core_i       => '0',
          main_pause_core_i       => '0',
-         main_osm_control_i      => (others => '0'),
+         main_osm_control_i      => (5 => '1', 16 => '1', others => '0'),
          main_qnice_gp_reg_i     => (others => '0'),
          main_audio_left_o       => open,
          main_audio_right_o      => open,

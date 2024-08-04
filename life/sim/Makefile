@@ -8,6 +8,7 @@ SRCS += ../vhdl/clk.vhd
 SRCS += ../vhdl/globals.vhd
 SRCS += ../vhdl/life.vhd
 SRCS += ../vhdl/controller/lfsr.vhd
+SRCS += ../vhdl/controller/random.vhd
 SRCS += ../vhdl/controller/controller.vhd
 SRCS += ../vhdl/controller/controller_wrapper.vhd
 SRCS += ../vhdl/video/font.vhd
@@ -27,8 +28,8 @@ TB = life
 TB = mega65_core
 
 GENERICS += -gG_CELL_BITS=4
-GENERICS += -gG_ROWS=8
-GENERICS += -gG_COLS=8
+GENERICS += -gG_ROWS=89
+GENERICS += -gG_COLS=160
 GENERICS += -gG_BOARD=R6
 
 all:

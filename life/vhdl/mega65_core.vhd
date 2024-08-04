@@ -226,20 +226,20 @@ end entity mega65_core;
 
 architecture synthesis of mega65_core is
 
-   constant C_VIDEO_MODE : video_modes_t      := C_HDMI_720p_60;
+   constant C_VIDEO_MODE : video_modes_t                         := C_HDMI_720p_60;
 
    -- OSM selections within qnice_osm_control_i
-   constant C_MENU_INIT_DENSITY_30 : natural  :=  5;
-   constant C_MENU_INIT_DENSITY_25 : natural  :=  6;
-   constant C_MENU_INIT_DENSITY_20 : natural  :=  7;
-   constant C_MENU_INIT_DENSITY_15 : natural  :=  8;
-   constant C_MENU_INIT_DENSITY_10 : natural  :=  9;
+   constant C_MENU_INIT_DENSITY_30 : natural                     := 5;
+   constant C_MENU_INIT_DENSITY_25 : natural                     := 6;
+   constant C_MENU_INIT_DENSITY_20 : natural                     := 7;
+   constant C_MENU_INIT_DENSITY_15 : natural                     := 8;
+   constant C_MENU_INIT_DENSITY_10 : natural                     := 9;
 
-   constant C_MENU_GEN_SPEED_FASTER : natural := 16;
-   constant C_MENU_GEN_SPEED_FAST   : natural := 17;
-   constant C_MENU_GEN_SPEED_MEDIUM : natural := 18;
-   constant C_MENU_GEN_SPEED_SLOW   : natural := 19;
-   constant C_MENU_GEN_SPEED_SLOWER : natural := 20;
+   constant C_MENU_GEN_SPEED_FASTER : natural                    := 16;
+   constant C_MENU_GEN_SPEED_FAST   : natural                    := 17;
+   constant C_MENU_GEN_SPEED_MEDIUM : natural                    := 18;
+   constant C_MENU_GEN_SPEED_SLOW   : natural                    := 19;
+   constant C_MENU_GEN_SPEED_SLOWER : natural                    := 20;
 
    signal   main_life_ready         : std_logic;
    signal   main_life_addr          : std_logic_vector(9 downto 0);
@@ -247,6 +247,7 @@ architecture synthesis of mega65_core is
    signal   main_life_wr_en         : std_logic;
    signal   main_life_step          : std_logic;
    signal   main_life_count         : std_logic_vector(15 downto 0);
+   signal   main_life_gens          : std_logic_vector(15 downto 0);
    signal   main_init_density       : natural range 0 to 100;
    signal   main_generational_speed : natural range 0 to 31;
 
@@ -260,7 +261,16 @@ architecture synthesis of mega65_core is
    signal   main_tdp_wr_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
    signal   main_tdp_wr_en   : std_logic;
 
+   signal   main_row_cells_up    : std_logic_vector(G_COLS - 1 downto 0);
+   signal   main_row_cells_down  : std_logic_vector(G_COLS - 1 downto 0);
+   signal   main_tdp_wr_en_d     : std_logic;
+   signal   main_cell_count_up   : std_logic_vector(15 downto 0) := (others => '0');
+   signal   main_cell_count_down : std_logic_vector(15 downto 0) := (others => '0');
+   signal   main_cell_count      : std_logic_vector(15 downto 0) := (others => '0');
+   signal   main_life_ready_d3   : std_logic;
+
    signal   video_count    : std_logic_vector(15 downto 0);
+   signal   video_gens     : std_logic_vector(15 downto 0);
    signal   video_mem_addr : std_logic_vector(9 downto 0);
    signal   video_mem_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
 
@@ -297,15 +307,15 @@ begin
    begin
       if rising_edge(main_clk_o) then
          if main_osm_control_i(C_MENU_GEN_SPEED_FASTER) = '1' then
-            main_generational_speed <= 18;
+            main_generational_speed <= 17;
          elsif main_osm_control_i(C_MENU_GEN_SPEED_FAST) = '1' then
-            main_generational_speed <= 20;
+            main_generational_speed <= 19;
          elsif main_osm_control_i(C_MENU_GEN_SPEED_MEDIUM) = '1' then
-            main_generational_speed <= 22;
+            main_generational_speed <= 21;
          elsif main_osm_control_i(C_MENU_GEN_SPEED_SLOW) = '1' then
-            main_generational_speed <= 24;
+            main_generational_speed <= 23;
          elsif main_osm_control_i(C_MENU_GEN_SPEED_SLOWER) = '1' then
-            main_generational_speed <= 26;
+            main_generational_speed <= 25;
          end if;
       end if;
    end process generational_speed_proc;
@@ -347,7 +357,7 @@ begin
          main_generational_speed_i => main_generational_speed,
          main_life_ready_i         => main_life_ready,
          main_life_step_o          => main_life_step,
-         main_life_count_o         => main_life_count,
+         main_life_gens_o          => main_life_gens,
          main_board_busy_o         => main_controller_busy,
          main_board_addr_o         => main_controller_addr,
          main_board_rd_data_i      => main_tdp_rd_data,
@@ -383,6 +393,88 @@ begin
          q_b       => video_mem_data
       ); -- tdp_ram_inst
 
+   shift_registers_inst : entity work.shift_registers
+      generic map (
+         G_DATA_SIZE => 1,
+         G_DEPTH     => 3
+      )
+      port map (
+         clk_i     => main_clk_o,
+         clken_i   => '1',
+         data_i(0) => main_life_ready,
+         data_o(0) => main_life_ready_d3
+      ); -- shift_registers_inst
+
+   main_cell_count_proc : process (main_clk_o)
+      --
+
+      pure function get_row_cells (
+         arg : std_logic_vector
+      ) return std_logic_vector is
+         variable res_v  : std_logic_vector(G_COLS - 1 downto 0);
+         variable cell_v : std_logic_vector(G_CELL_BITS - 1 downto 0);
+      begin
+         --
+         for i in 0 to G_COLS - 1 loop
+            cell_v   := arg((i + 1) * G_CELL_BITS - 1 downto i * G_CELL_BITS);
+            res_v(i) := or(cell_v);
+         end loop;
+
+         return res_v;
+      end function get_row_cells;
+
+      pure function count_ones (
+         arg : std_logic_vector
+      ) return natural is
+         variable res_v : natural range 0 to arg'length;
+      begin
+         res_v := 0;
+
+         for i in arg'range loop
+            if arg(i) = '1' then
+               res_v := res_v + 1;
+            end if;
+         end loop;
+
+         return res_v;
+      end function count_ones;
+
+   --
+   begin
+      if rising_edge(main_clk_o) then
+         -- This calculation is pipelined to improve timing.
+         main_tdp_wr_en_d     <= main_tdp_wr_en;
+         main_cell_count_up   <= (others => '0');
+         main_cell_count_down <= (others => '0');
+         main_row_cells_up    <= (others => '0');
+         main_row_cells_down  <= (others => '0');
+
+         -- Stage 1 : Get new and old row
+
+         if main_tdp_wr_en = '1' then
+            main_row_cells_up <= get_row_cells(main_tdp_wr_data);
+         end if;
+
+         if main_tdp_wr_en_d = '1' then
+            main_row_cells_down <= get_row_cells(main_tdp_rd_data);
+         end if;
+
+         -- Stage 2 : Count number of cells in roe
+
+         main_cell_count_up   <= std_logic_vector(to_unsigned(count_ones(main_row_cells_up), 16));
+         main_cell_count_down <= std_logic_vector(to_unsigned(count_ones(main_row_cells_down), 16));
+
+         -- Stage 3 : Update total count
+
+         main_cell_count      <= std_logic_vector(unsigned(main_cell_count) + unsigned(main_cell_count_up) -
+                                                  unsigned(main_cell_count_down));
+
+         -- Store total when engine is idle
+         if main_life_ready_d3 = '1' then
+            main_life_count <= main_cell_count;
+         end if;
+      end if;
+   end process main_cell_count_proc;
 
 
    ---------------------------------------------------------------------------------------------
@@ -391,13 +483,15 @@ begin
 
    xpm_cdc_array_single_inst : component xpm_cdc_array_single
       generic map (
-         WIDTH => 16
+         WIDTH => 32
       )
       port map (
-         src_clk  => main_clk_o,
-         src_in   => main_life_count,
-         dest_clk => video_clk_o,
-         dest_out => video_count
+         src_clk                => main_clk_o,
+         src_in(15 downto 0)    => main_life_count,
+         src_in(31 downto 16)   => main_life_gens,
+         dest_clk               => video_clk_o,
+         dest_out(15 downto 0)  => video_count,
+         dest_out(31 downto 16) => video_gens
       ); -- xpm_cdc_array_single_inst
 
    video_wrapper_inst : entity work.video_wrapper
@@ -413,6 +507,7 @@ begin
          video_rst_i    => video_rst_o,
          video_addr_o   => video_mem_addr,
          video_data_i   => video_mem_data,
+         video_gens_i   => video_gens,
          video_count_i  => video_count,
          video_ce_o     => video_ce_o,
          video_ce_ovl_o => video_ce_ovl_o,
