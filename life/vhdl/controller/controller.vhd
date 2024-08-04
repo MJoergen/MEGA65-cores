@@ -9,22 +9,24 @@ entity controller is
       G_COLS      : integer
    );
    port (
-      clk_i           : in    std_logic;
-      rst_i           : in    std_logic;
-      cmd_valid_i     : in    std_logic;
-      cmd_ready_o     : out   std_logic;
-      cmd_data_i      : in    std_logic_vector(7 downto 0);
-      uart_tx_valid_o : out   std_logic;
-      uart_tx_ready_i : in    std_logic;
-      uart_tx_data_o  : out   std_logic_vector(7 downto 0);
-      ready_i         : in    std_logic;
-      step_o          : out   std_logic;
-      count_o         : out   std_logic_vector(15 downto 0);
-      board_busy_o    : out   std_logic;
-      board_addr_o    : out   std_logic_vector(9 downto 0);
-      board_rd_data_i : in    std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
-      board_wr_data_o : out   std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
-      board_wr_en_o   : out   std_logic
+      clk_i                : in    std_logic;
+      rst_i                : in    std_logic;
+      cmd_valid_i          : in    std_logic;
+      cmd_ready_o          : out   std_logic;
+      cmd_data_i           : in    std_logic_vector(7 downto 0);
+      uart_tx_valid_o      : out   std_logic;
+      uart_tx_ready_i      : in    std_logic;
+      uart_tx_data_o       : out   std_logic_vector(7 downto 0);
+      init_density_i       : in    natural range 0 to 100;
+      generational_speed_i : in    natural range 0 to 31;
+      ready_i              : in    std_logic;
+      step_o               : out   std_logic;
+      count_o              : out   std_logic_vector(15 downto 0);
+      board_busy_o         : out   std_logic;
+      board_addr_o         : out   std_logic_vector(9 downto 0);
+      board_rd_data_i      : in    std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+      board_wr_data_o      : out   std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+      board_wr_en_o        : out   std_logic
    );
 end entity controller;
 
@@ -39,10 +41,12 @@ architecture synthesis of controller is
    signal   cur_row      : natural range 0 to G_ROWS;
    signal   wait_for_ram : std_logic;
 
-   signal   lfsr_output : std_logic_vector(31 downto 0);
-   signal   rand7       : std_logic_vector(6 downto 0);
+   signal   rand_output       : std_logic_vector(127 downto 0);
+   signal   rand7             : std_logic_vector(6 downto 0);
+   signal   init_rand7_cutoff : std_logic_vector(6 downto 0);
 
-   signal   step_counter : std_logic_vector(23 downto 0) := (others => '0');
+   signal   step_counter : std_logic_vector(31 downto 0) := (others => '0');
+   signal   step         : std_logic;
 
    pure function to_stdlogic (
       arg : boolean
@@ -57,23 +61,25 @@ architecture synthesis of controller is
 
 begin
 
-   lfsr_inst : entity work.lfsr
-      generic map (
-         G_TAPS  => X"0000000080000EA6", -- see https://users.ece.cmu.edu/~koopman/lfsr/32.txt
-         G_WIDTH => 32
-      )
-      port map (
-         clk_i      => clk_i,
-         rst_i      => rst_i,
-         update_i   => '1',
-         load_i     => '0',
-         load_val_i => (others => '0'),
-         output_o   => lfsr_output
-      ); -- lfsr_inst
+   step_proc : process (all)
+      variable tmp_v : std_logic_vector(31 downto 0);
+   begin
+      tmp_v                                := (others => '1');
+      tmp_v(generational_speed_i downto 0) := step_counter(generational_speed_i downto 0);
+      step <= and(tmp_v);
+   end process step_proc;
 
-   -- Select seven widely (but unevenly) spaced bits from the LFSR output
-   rand7        <= lfsr_output(20) & lfsr_output(27) & lfsr_output(11) & lfsr_output(17) &
-                   lfsr_output(0) & lfsr_output(25) & lfsr_output(7);
+   random_inst : entity work.random
+      port map (
+         clk_i    => clk_i,
+         rst_i    => rst_i,
+         update_i => '1',
+         output_o => rand_output
+      ); -- random_inst
+
+   -- Select seven widely (but unevenly) spaced bits from the random output
+   rand7        <= rand_output(20) & rand_output(27) & rand_output(11) & rand_output(17) &
+                   rand_output(0) & rand_output(25) & rand_output(7);
 
 
    board_busy_o <= '1' when state = PRINTING_ST or board_wr_en_o = '1' else
@@ -87,8 +93,9 @@ begin
       variable cell_v : std_logic_vector(G_CELL_BITS - 1 downto 0);
    begin
       if rising_edge(clk_i) then
-         board_wr_en_o <= '0';
-         step_counter  <= step_counter + 1;
+         board_wr_en_o     <= '0';
+         step_counter      <= step_counter + 1;
+         init_rand7_cutoff <= to_stdlogicvector((init_density_i * 128) / 100, 7);
 
          if ready_i = '1' then
             step_o <= '0';
@@ -108,7 +115,7 @@ begin
                   end if;
                end if;
 
-               cell_v := (others => to_stdlogic(rand7 < (C_POPULATION_RATE * 128) / 100));
+               cell_v                                                                        := (others => to_stdlogic(rand7 < init_rand7_cutoff));
                board_wr_data_o((cur_col + 1) * G_CELL_BITS - 1 downto cur_col * G_CELL_BITS) <= cell_v;
                if cur_col < G_COLS - 1 then
                   cur_col <= cur_col + 1;
@@ -142,7 +149,7 @@ begin
 
                      when X"53" =>
                         -- "S"
-                        step_o <= '1';
+                        step_o  <= '1';
                         count_o <= count_o + 1;
 
                      when others =>
@@ -153,8 +160,8 @@ begin
                end if;
 
             when CONTINUOUS_ST =>
-               step_o <= and(step_counter);
-               if and(step_counter) = '1' then
+               step_o <= step;
+               if step = '1' then
                   count_o <= count_o + 1;
                end if;
 

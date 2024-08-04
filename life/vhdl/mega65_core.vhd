@@ -226,14 +226,29 @@ end entity mega65_core;
 
 architecture synthesis of mega65_core is
 
-   constant C_VIDEO_MODE : video_modes_t := C_HDMI_720p_60;
+   constant C_VIDEO_MODE : video_modes_t      := C_HDMI_720p_60;
 
-   signal   main_life_ready   : std_logic;
-   signal   main_life_addr    : std_logic_vector(9 downto 0);
-   signal   main_life_wr_data : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
-   signal   main_life_wr_en   : std_logic;
-   signal   main_life_step    : std_logic;
-   signal   main_life_count   : std_logic_vector(15 downto 0);
+   -- OSM selections within qnice_osm_control_i
+   constant C_MENU_INIT_DENSITY_30 : natural  :=  5;
+   constant C_MENU_INIT_DENSITY_25 : natural  :=  6;
+   constant C_MENU_INIT_DENSITY_20 : natural  :=  7;
+   constant C_MENU_INIT_DENSITY_15 : natural  :=  8;
+   constant C_MENU_INIT_DENSITY_10 : natural  :=  9;
+
+   constant C_MENU_GEN_SPEED_FASTER : natural := 16;
+   constant C_MENU_GEN_SPEED_FAST   : natural := 17;
+   constant C_MENU_GEN_SPEED_MEDIUM : natural := 18;
+   constant C_MENU_GEN_SPEED_SLOW   : natural := 19;
+   constant C_MENU_GEN_SPEED_SLOWER : natural := 20;
+
+   signal   main_life_ready         : std_logic;
+   signal   main_life_addr          : std_logic_vector(9 downto 0);
+   signal   main_life_wr_data       : std_logic_vector(G_CELL_BITS * G_COLS - 1 downto 0);
+   signal   main_life_wr_en         : std_logic;
+   signal   main_life_step          : std_logic;
+   signal   main_life_count         : std_logic_vector(15 downto 0);
+   signal   main_init_density       : natural range 0 to 100;
+   signal   main_generational_speed : natural range 0 to 31;
 
    signal   main_controller_busy    : std_logic;
    signal   main_controller_addr    : std_logic_vector(9 downto 0);
@@ -260,6 +275,40 @@ begin
          main_clk_o  => main_clk_o,
          main_rst_o  => main_rst_o
       ); -- clk_inst
+
+   init_density_proc : process (main_clk_o)
+   begin
+      if rising_edge(main_clk_o) then
+         if main_osm_control_i(C_MENU_INIT_DENSITY_30) = '1' then
+            main_init_density <= 30;
+         elsif main_osm_control_i(C_MENU_INIT_DENSITY_25) = '1' then
+            main_init_density <= 25;
+         elsif main_osm_control_i(C_MENU_INIT_DENSITY_20) = '1' then
+            main_init_density <= 20;
+         elsif main_osm_control_i(C_MENU_INIT_DENSITY_15) = '1' then
+            main_init_density <= 15;
+         elsif main_osm_control_i(C_MENU_INIT_DENSITY_10) = '1' then
+            main_init_density <= 10;
+         end if;
+      end if;
+   end process init_density_proc;
+
+   generational_speed_proc : process (main_clk_o)
+   begin
+      if rising_edge(main_clk_o) then
+         if main_osm_control_i(C_MENU_GEN_SPEED_FASTER) = '1' then
+            main_generational_speed <= 18;
+         elsif main_osm_control_i(C_MENU_GEN_SPEED_FAST) = '1' then
+            main_generational_speed <= 20;
+         elsif main_osm_control_i(C_MENU_GEN_SPEED_MEDIUM) = '1' then
+            main_generational_speed <= 22;
+         elsif main_osm_control_i(C_MENU_GEN_SPEED_SLOW) = '1' then
+            main_generational_speed <= 24;
+         elsif main_osm_control_i(C_MENU_GEN_SPEED_SLOWER) = '1' then
+            main_generational_speed <= 26;
+         end if;
+      end if;
+   end process generational_speed_proc;
 
    -- Instantiate main
    life_inst : entity work.life
@@ -288,20 +337,22 @@ begin
          G_COLS          => G_COLS
       )
       port map (
-         main_clk_i              => main_clk_o,
-         main_rst_i              => main_rst_o,
-         main_kb_key_num_i       => main_kb_key_num_i,
-         main_kb_key_pressed_n_i => main_kb_key_pressed_n_i,
-         uart_tx_o               => uart_tx_o,
-         uart_rx_i               => uart_rx_i,
-         main_life_ready_i       => main_life_ready,
-         main_life_step_o        => main_life_step,
-         main_life_count_o       => main_life_count,
-         main_board_busy_o       => main_controller_busy,
-         main_board_addr_o       => main_controller_addr,
-         main_board_rd_data_i    => main_tdp_rd_data,
-         main_board_wr_data_o    => main_controller_wr_data,
-         main_board_wr_en_o      => main_controller_wr_en
+         main_clk_i                => main_clk_o,
+         main_rst_i                => main_rst_o or main_reset_core_i,
+         main_kb_key_num_i         => main_kb_key_num_i,
+         main_kb_key_pressed_n_i   => main_kb_key_pressed_n_i,
+         uart_tx_o                 => uart_tx_o,
+         uart_rx_i                 => uart_rx_i,
+         main_init_density_i       => main_init_density,
+         main_generational_speed_i => main_generational_speed,
+         main_life_ready_i         => main_life_ready,
+         main_life_step_o          => main_life_step,
+         main_life_count_o         => main_life_count,
+         main_board_busy_o         => main_controller_busy,
+         main_board_addr_o         => main_controller_addr,
+         main_board_rd_data_i      => main_tdp_rd_data,
+         main_board_wr_data_o      => main_controller_wr_data,
+         main_board_wr_en_o        => main_controller_wr_en
       ); -- controller_wrapper_inst
 
    main_tdp_addr    <= main_controller_addr when main_controller_busy = '1' else

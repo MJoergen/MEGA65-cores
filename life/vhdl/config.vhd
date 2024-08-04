@@ -76,93 +76,29 @@ type WHS_RECORD_ARRAY_TYPE is array (0 to WHS_RECORDS - 1) of WHS_RECORD_TYPE;
 
 constant SCR_WELCOME : string :=
 
-   "Name of the Demo Core Version 1.0\n" &
-   "MiSTer port done by Demo Author in 2022\n\n" &
+   "Game of Life Version 1.0\n" &
+   "Done by MJoergen in 2024\n\n" &
 
-   -- We are not insisting. But it would be nice if you gave us credit for MiSTer2MEGA65 by leaving these lines in
-   "Powered by MiSTer2MEGA65 Version [WIP],\n" &
-   "done by sy2002 and MJoergen in 2022\n" &
+   "Powered by MiSTer2MEGA65 Version 2.0.0,\n" &
+   "done by sy2002 and MJoergen in 2024\n\n\n" &
 
-   "\n\nEdit config.vhd to modify welcome screen.\n\n" &
-   "You can for example show the keyboard map.\n" &
-   "Look at this example for the Demo core:\n\n\n" &
-
-   "    Key                Demo core\n" &
+   "    Key                Action\n" &
    "    " & CHR_LINE_10 & CHR_LINE_10 & CHR_LINE_10 & CHR_LINE_1 & CHR_LINE_1 & "\n" &
-   "    Left Cursor        Paddle left\n" &
-   "    Right Cursor       Paddle right\n" &
-   "    Space              Start game\n" &
+   "    S                  Single Step \n" &
+   "    C                  Continuous mode \n" &
+   "    I                  Initialize \n" &
    "    Help               Options menu\n\n\n" &
 
    "\n\n    Press Space to continue.\n\n\n";
 
-constant HELP_1 : string :=
-
-   "\n Demo Core for MEGA65 Version 1\n\n" &
-
-   " MiSTer port 2022 by YOU\n" &
-   " Powered by MiSTer2MEGA65\n\n\n" &
-
-   " Lorem ipsum dolor sit amet, consetetur\n" &
-   " sadipscing elitr, sed diam nonumy eirmod\n" &
-   " Mpor invidunt ut labore et dolore magna\n" &
-   " aliquyam erat, sed diam voluptua. At vero\n" &
-   " eos et accusam et justo duo.\n\n" &
-
-   " Dolores et ea rebum. Stet clita kasd gube\n" &
-   " gren, no sea takimata sanctus est Lorem ip\n" &
-   " Sed diam nonumy eirmod tempor invidunt ut\n" &
-   " labore et dolore magna aliquyam era\n\n" &
-
-   " Cursor right to learn more.       (1 of 3)\n" &
-   " Press Space to close the help screen.";
-
-constant HELP_2 : string :=
-
-   "\n Demo Core for MEGA65 Version 1\n\n" &
-
-   " XYZ ABCDEFGH:\n\n" &
-
-   " 1. ABCD EFGH\n" &
-   " 2. IJK LM NOPQ RSTUVWXYZ\n" &
-   " 3. 10 20 30 40 50\n\n" &
-
-   " a) Dolores et ea rebum\n" &
-   " b) Takimata sanctus est\n" &
-   " c) Tempor Invidunt ut\n" &
-   " d) Sed Diam Nonumy eirmod te\n" &
-   " e) Awesome\n\n" &
-
-   " Ut wisi enim ad minim veniam, quis nostru\n" &
-   " exerci tation ullamcorper suscipit lobor\n" &
-   " tis nisl ut aliquip ex ea commodo.\n\n" &
-
-   " Crsr left: Prev  Crsr right: Next (2 of 3)\n" &
-   " Press Space to close the help screen.";
-
-constant HELP_3 : string :=
-
-   "\n Help Screens\n\n" &
-
-   " You can have 255 screens per help topic.\n\n" &
-
-   " 15 topics overall.\n" &
-   " 1 menu item per topic.\n\n\n\n" &
-
-   " Cursor left to go back.           (3 of 3)\n" &
-   " Press Space to close the help screen.";
-
 -- Concatenate all your Welcome and Help screens into one large string, so that during synthesis one large string ROM can be build.
-constant WHS_DATA : string := SCR_WELCOME & HELP_1 & HELP_2 & HELP_3;
+constant WHS_DATA : string := SCR_WELCOME;
 
 -- The WHS array needs the start address of each page. As a best practice: Just define some constants, that you can name for example
 -- just like you named the string constants and then add _START. Use the 'length attribute of VHDL to add up all previous strings
 -- so that the Synthesis tool can calculate the start addresses: Your first string starts at zero, your next one at the address which
 -- is equal to the length of the first one, your next one at the address which is equal to the sum of the previous ones, and so on.
 constant SCR_WELCOME_START : natural := 0;
-constant HELP_1_START      : natural := SCR_WELCOME'length;
-constant HELP_2_START      : natural := HELP_1_START + HELP_1'length;
-constant HELP_3_START      : natural := HELP_2_START + HELP_2'length;
 
 -- Fill the WHS array with page start addresses and the length of each page.
 -- Make sure that array element 0 is always your Welcome page. If you don't use a welcome page, fill everything with zeros.
@@ -173,9 +109,9 @@ constant WHS : WHS_RECORD_ARRAY_TYPE := (
     page_length   => (SCR_WELCOME'length, 0, 0)),
 
    --- Help pages
-   (page_count    => 3,
-    page_start    => (HELP_1_START,  HELP_2_START,  HELP_3_START),
-    page_length   => (HELP_1'length, HELP_2'length, HELP_3'length))
+   (page_count    => 1,
+    page_start    => (SCR_WELCOME_START,  0, 0),
+    page_length   => (SCR_WELCOME'length, 0, 0))
 );
 
 --------------------------------------------------------------------------------------------------------------------
@@ -188,8 +124,8 @@ constant SEL_CFG_FILE      : std_logic_vector(15 downto 0) := x"0101";
 
 -- START YOUR CONFIGURATION BELOW THIS LINE
 
-constant DIR_START         : string := "/m2m";
-constant CFG_FILE          : string := "/m2m/m2mcfg";
+constant DIR_START         : string := "/life";
+constant CFG_FILE          : string := "/life/lifecfg";
 
 --------------------------------------------------------------------------------------------------------------------
 -- General configuration settings: Reset, Pause, OSD behavior, Ascal, etc. (Selector 0x0110)
@@ -207,11 +143,11 @@ constant RESET_COUNTER     : natural := 100;
 constant OPTM_PAUSE        : boolean := false;
 
 -- show the welcome screen in general
-constant WELCOME_ACTIVE    : boolean := false;
+constant WELCOME_ACTIVE    : boolean := true;
 
 -- shall the welcome screen also be shown after the core is reset?
 -- (only relevant if WELCOME_ACTIVE is true)
-constant WELCOME_AT_RESET  : boolean := false;
+constant WELCOME_AT_RESET  : boolean := true;
 
 -- keyboard and joystick connection during reset and OSD
 constant KEYBOARD_AT_RESET : boolean := false;
@@ -268,7 +204,7 @@ constant SEL_CORENAME      : std_logic_vector(15 downto 0) := x"0200";
 
 -- Currently this is only used in the debug console. Use the welcome screen and the
 -- help system to display the name and version of your core to the end user
-constant CORENAME          : string := "M2M DEMO CORE V1.0";
+constant CORENAME          : string := "Conway's Game of Life for MEGA65 V1.0";
 
 --------------------------------------------------------------------------------------------------------------------
 -- "Help" menu / Options menu  (Selectors 0x0300 .. 0x0312): DO NOT TOUCH
@@ -329,42 +265,89 @@ constant OPTM_S_SAVING     : string := "<Saving>";          -- the internal writ
 --             Do use a lower case \n. If you forget one of them or if you use upper case, you will run into undefined behavior.
 --          2. Start each line that contains an actual menu item (multi- or single-select) with a Space character,
 --             otherwise you will experience visual glitches.
-constant OPTM_SIZE         : natural := 5;  -- amount of items including empty lines:
-                                            -- needs to be equal to the number of lines in OPTM_ITEMS and amount of items in OPTM_GROUPS
-                                            -- IMPORTANT: If SAVE_SETTINGS is true and OPTM_SIZE changes: Make sure to re-generate and
-                                            -- and re-distribute the config file. You can make a new one using M2M/tools/make_config.sh
+constant OPTM_SIZE         : natural := 27;  -- amount of items including empty lines:
+                                             -- needs to be equal to the number of lines in OPTM_ITEMS and amount of items in OPTM_GROUPS
+                                             -- IMPORTANT: If SAVE_SETTINGS is true and OPTM_SIZE changes: Make sure to re-generate and
+                                             -- and re-distribute the config file. You can make a new one using M2M/tools/make_config.sh
 
 -- Net size of the Options menu on the screen in characters (excluding the frame, which is hardcoded to two characters)
 -- Without submenus: Use OPTM_SIZE as height, otherwise count how large the actually visible main menu is.
-constant OPTM_DX           : natural := 23;
-constant OPTM_DY           : natural := 24;
+constant OPTM_DX           : natural := 20;
+constant OPTM_DY           : natural := 9;
 
 constant OPTM_ITEMS        : string :=
 
-   " Life\n"            &
-   "\n"                 &
-   " Demo Headline A\n" &
-   "\n"                 &
-   " Close Menu\n";
+   " Game of Life\n"       &
+   "\n"                    &
 
--- define your own constants here and choose meaningful names
--- make sure that your first group uses the value 1 (0 means "no menu item", such as text and line),
--- and be aware that you can only have a maximum of 254 groups (255 means "Close Menu");
--- also make sure that your group numbers are monotonic increasing (e.g. 1, 2, 3, 4, ...)
--- single-select items and therefore also drive mount items need to have unique identifiers
-constant OPTM_G_Demo_A     : integer := 1;
+   " Density: %s\n"        &
+   " Density Settings\n"   &
+   "\n"                    &
+   " 30\n"                 &
+   " 25\n"                 &
+   " 20\n"                 &
+   " 15\n"                 &
+   " 10\n"                 &
+   "\n"                    &
+   " Back to main menu\n"  &
+
+   "\n"                    &
+
+   " Speed: %s\n"          &
+   " Speed Settings\n"     &
+   "\n"                    &
+   " Faster\n"             &
+   " Fast\n"               &
+   " Medium\n"             &
+   " Slow\n"               &
+   " Slower\n"             &
+   "\n"                    &
+   " Back to main menu\n"  &
+
+   "\n"                    &
+   " About & Help\n"       &
+   "\n"                    &
+   " Close Menu\n";
 
 -- !!! DO NOT TOUCH !!!
 type OPTM_GTYPE is array (0 to OPTM_SIZE - 1) of integer range 0 to 2**OPTM_GTC- 1;
 
--- define your menu groups: which menu items are belonging together to form a group?
--- where are separator lines? which items should be selected by default?
--- make sure that you have exactly the same amount of entries here than in OPTM_ITEMS and defined by OPTM_SIZE
-constant OPTM_GROUPS       : OPTM_GTYPE := ( OPTM_G_TEXT + OPTM_G_HEADLINE,            -- Headline "Life"
-                                             OPTM_G_LINE,                              -- Line
-                                             OPTM_G_Demo_A + OPTM_G_START,             -- Item A.1, cursor start position
-                                             OPTM_G_LINE,                              -- Line
-                                             OPTM_G_CLOSE                              -- Close Menu
+constant OPTM_G_LOAD_PRG   : integer := 1;   -- used in CORE/m2m-rom/m2m.asm: change there, too, if you change it here
+constant OPTM_G_DENSITY    : integer := 2;
+constant OPTM_G_SPEED      : integer := 3;
+constant OPTM_G_ABOUT_HELP : integer := 4;
+
+constant OPTM_GROUPS       : OPTM_GTYPE := ( OPTM_G_HEADLINE,
+                                             OPTM_G_LINE,
+
+                                             OPTM_G_SUBMENU + OPTM_G_START,         -- Density submenu
+                                             OPTM_G_HEADLINE,
+                                             OPTM_G_LINE,
+                                             OPTM_G_DENSITY,
+                                             OPTM_G_DENSITY,
+                                             OPTM_G_DENSITY       + OPTM_G_STDSEL,
+                                             OPTM_G_DENSITY,
+                                             OPTM_G_DENSITY,
+                                             OPTM_G_LINE,
+                                             OPTM_G_CLOSE         + OPTM_G_SUBMENU,
+
+                                             OPTM_G_LINE,
+
+                                             OPTM_G_SUBMENU,                        -- Speed submenu
+                                             OPTM_G_HEADLINE,
+                                             OPTM_G_LINE,
+                                             OPTM_G_SPEED,                          -- Faster
+                                             OPTM_G_SPEED,                          -- Fast
+                                             OPTM_G_SPEED         + OPTM_G_STDSEL,  -- Medium
+                                             OPTM_G_SPEED,                          -- Slow
+                                             OPTM_G_SPEED,                          -- Slower
+                                             OPTM_G_LINE,
+                                             OPTM_G_CLOSE         + OPTM_G_SUBMENU,
+
+                                             OPTM_G_LINE,
+                                             OPTM_G_ABOUT_HELP    + OPTM_G_HELP,
+                                             OPTM_G_LINE,
+                                             OPTM_G_CLOSE
                                            );
 
 --------------------------------------------------------------------------------------------------------------------

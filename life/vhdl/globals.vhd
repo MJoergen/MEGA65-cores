@@ -22,8 +22,8 @@ package globals is
    constant BOARD_CLK_SPEED      : natural                       := 100_000_000;
    constant CORE_CLK_SPEED       : natural                       := 125_000_000;
 
-   constant VGA_DX               : natural                       := 640;
-   constant VGA_DY               : natural                       := 480;
+   constant VGA_DX               : natural                       := 1280;
+   constant VGA_DY               : natural                       := 720;
 
    constant FONT_FILE            : string                        := "../font/Anikki-16x16-m2m.rom";
    constant FONT_DX              : natural                       := 16;
@@ -35,9 +35,9 @@ package globals is
    constant VRAM_ADDR_WIDTH      : natural                       := f_log2(CHAR_MEM_SIZE);
 
    type     vd_buf_array is array (natural range <>) of std_logic_vector(15 downto 0);
-   constant C_VDNUM              : natural                       := 0;
-   constant C_VD_DEVICE          : std_logic_vector(15 downto 0) := x"EEEE";
-   constant C_VD_BUFFER          : vd_buf_array                  := (x"EEEE", x"EEEE");
+   constant C_VDNUM              : natural                       := 1;
+   constant C_VD_DEVICE          : std_logic_vector(15 downto 0) := x"0110";
+   constant C_VD_BUFFER          : vd_buf_array                  := (x"0111", x"EEEE");
 
    type     crtrom_buf_array is array (natural range<>) of std_logic_vector;
    constant ENDSTR               : character                     := character'val(0);
